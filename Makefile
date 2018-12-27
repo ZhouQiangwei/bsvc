@@ -9,10 +9,17 @@ TARGET = bsnps
 TOCOMPILE = bsnps.o bamprocess.o hashtable.o readgenome.o fisher.o bayes.o getchrLen.o genotype.o
 
 all: ${TOCOMPILE}
+	make -C $(HTSLIB)
+	make clean-so -C $(HTSLIB)
+	make -C $(SAMTOOLS)
 	${CC} $(LDFLAGS) -o $(TARGET) ${TOCOMPILE} ${LIBS}
 
 .c.o:
 	$(CC) ${FLAGS} ${LIBS} -c $*.c
+
+deepclean: clean
+	make clean -C $(HTSLIB)
+	make clean -C $(SAMTOOLS)
 
 clean:
 	rm -f *.o $(TARGET)

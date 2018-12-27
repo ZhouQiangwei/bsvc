@@ -111,6 +111,7 @@ void processGenotype(double AA,double AC,double AT,double AG,double CC,double CG
 void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, int crqG, char refbase, unsigned int pos, char* chrom,
     int w_A, int w_T, int w_C, int w_G, int c_A, int c_T, int c_C, int c_G, std::string& genotypemaybe, double &qual)
 {
+    int mincovercut=1;
     //print "line[0]\n";
     //double ptransition=0.00066;
     //double ptransversion=0.00033;
@@ -141,14 +142,14 @@ void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, i
     //1、AA
     char ref=refbase;
     if(ref != 'A'){
-        if(wsqA>0 && ref ==  'G'){
+        if(wsqA>0 && w_A>mincovercut && ref ==  'G'){
             double a_aa=1-baseqWA;
             double other=baseqWA/3;
             double nn=Factorial(w_A,c_T,c_C,w_G);
 
             aa = nn+ w_A*log(a_aa) + (c_T+w_T+w_C+c_C+w_G+c_G)*log(other) ;
         }
-        if((wsqA>0 || wsqA>0) && ref != 'G'){
+        if((wsqA>0 && w_A>mincovercut || crqA>0 && c_A>mincovercut) && ref != 'G'){
             double a_aa=1-baseqWA;
             double other=baseqWA/3;
 
@@ -157,28 +158,28 @@ void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, i
     }
     //2、GG
     if(ref != 'G'){
-        if((wsqG>0|| crqG>0 || crqA>0) && ref != 'A'){
+        if((wsqG>0 && w_G>mincovercut|| crqG>0 && c_G>mincovercut || crqA>0 && c_A>mincovercut) && ref != 'A'){
             double gg_q;
             double other;
-            if(wsqG>0){
+            if(wsqG>0 && w_G>mincovercut){
                 gg_q = 1-baseqWG;
                 other=baseqWG/3;
-            }else if(crqG>0){
+            }else if(crqG>0 && c_G>mincovercut){
                 gg_q = 1-baseqCG;
                 other=baseqCG/3;
-            }else if(crqA>0){
+            }else if(crqA>0 && c_A>mincovercut){
                 gg_q = 1-baseqCA;
                 other=baseqCA/3;
             }
             gg =  nn+ (w_G+c_G+c_A)*log(gg_q) + (w_A+c_T+w_T+c_C+w_C)*log(other);
         }
-        if((wsqG>0 || crqG>0) && ref ==  'A'){
+        if((wsqG>0 && w_G>mincovercut || crqG>0 && c_G>mincovercut) && ref ==  'A'){
             double gg_q;
             double other;
-            if(wsqG>0){
+            if(wsqG>0 && w_G>mincovercut){
                 gg_q = 1-baseqWG;
                 other=baseqWG/3;
-            }else if(crqG>0){
+            }else if(crqG>0 && c_G>mincovercut){
                 gg_q = 1-baseqCG;
                 other=baseqCG/3;
             }
@@ -187,18 +188,18 @@ void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, i
     }
     //3、TT
     if(ref != 'T'){
-        if(crqT>0 && ref ==  'C'){
+        if(crqT>0 && c_T>mincovercut && ref ==  'C'){
             double tt_q=1-baseqCT;
             double other=baseqCT/3;
             tt= nn+ c_T*log(tt_q)+ (w_A+c_C+w_G+c_G+w_C+c_A)*log(other);
         }
-        if((wsqT>0 || crqT>0) && ref != 'C'){
+        if((wsqT>0 && w_T>mincovercut || crqT>0 && c_T>mincovercut) && ref != 'C'){
             double tt_q;
             double other;
-            if(wsqT>0){
+            if(wsqT>0 && w_T>mincovercut){
                 tt_q = 1-baseqWT;
                 other=baseqWT/3;
-            }else if(crqT>0){
+            }else if(crqT>0 && c_T>mincovercut){
                 tt_q = 1-baseqCT;
                 other=baseqCT/3;
             }
@@ -207,28 +208,28 @@ void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, i
     }
     //4、CC
     if(ref != 'C'){
-        if((crqC>0 || wsqC>0) && ref ==  'T'){
+        if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut) && ref ==  'T'){
             double cc_q;
             double other;
-            if(wsqC>0){
+            if(wsqC>0 && w_C>mincovercut){
                 cc_q = 1-baseqWC;
                 other=baseqWC/3;
-            }else if(crqC>0){
+            }else if(crqC>0 && c_C>mincovercut){
                 cc_q = 1-baseqCC;
                 other=baseqCC/3;
             }
             cc = nn+ (c_C+w_C)*log(cc_q) + (w_A+c_A+c_T+w_G+c_G)*log(other);
         }
-        if((crqC>0 || wsqC>0 || wsqT>0) && ref != 'T'){
+        if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut || wsqT>0 && w_T>mincovercut) && ref != 'T'){
             double cc_q;
             double other;
-            if(wsqC>0){
+            if(wsqC>0 && w_C>mincovercut){
                 cc_q = 1-baseqWC;
                 other=baseqWC/3;
-            }else if(crqC>0){
+            }else if(crqC>0 && c_C>mincovercut){
                 cc_q = 1-baseqCC;
                 other=baseqCC/3;
-            }else if(wsqT>0){
+            }else if(wsqT>0 && w_T>mincovercut){
                 cc_q=1-baseqWT;
                 other=baseqWT/3;
             }
@@ -238,158 +239,158 @@ void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, i
     //if(CC==TT) {//看C的数目。
 
     //5、AC
-    if((wsqA>0|| crqA>0) &&ref != 'G'){
+    if((wsqA>0 && w_A>mincovercut|| crqA>0 && c_A>mincovercut) &&ref != 'G'){
         double ac_q;
         double other;
-        if(wsqA>0){
+        if(wsqA>0 && w_A>mincovercut){
             ac_q = (1-baseqWA)/2;
             other=baseqWA/3;
-        }else if(crqA>0){
+        }else if(crqA>0 && c_A>mincovercut){
             ac_q = (1-baseqCA)/2;
             other=baseqCA/3;
         }
-        if((crqC>0 || wsqC>0) && ref ==  'T'){
+        if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut) && ref ==  'T'){
             ac=nn+ (c_C+w_C+w_A+c_A)*log(ac_q)+(c_T+w_G+c_G)*log(other);
         }
-        if((crqC>0 || wsqC>0 || wsqT>0) && ref != 'T'){
+        if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut || wsqT>0 && w_T>mincovercut) && ref != 'T'){
             ac=nn+ (c_C+w_C+w_T+w_A+c_A)*log(ac_q)+(c_T+w_G+c_G)*log(other);
         }
     }
-    if(wsqA>0 && ref ==  'G'){
+    if(wsqA>0 && w_A>mincovercut && ref ==  'G'){
         double ac_q = (1-baseqWA)/2;
         double other=baseqWA/3;
-        if((crqC>0 || wsqC>0 || wsqT>0)){
+        if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut || wsqT>0 && w_T>mincovercut)){
             ac=nn+ (c_C+w_C+w_T+w_A)*log(ac_q)+(c_T+w_G+c_G)*log(other);
         }
     }
     //// 6、AG
-    if( (wsqA>0|| crqA>0) && ref != 'G'){
+    if( (wsqA>0 && w_A>mincovercut|| crqA>0 && c_A>mincovercut) && ref != 'G'){
         double ag_q;
         double other;
-        if(wsqA>0){
+        if(wsqA>0 && w_A>mincovercut){
             ag_q = (1-baseqWA)/2;
             other=baseqWA/3;
-        }else if(crqA>0){
+        }else if(crqA>0 && c_A>mincovercut){
             ag_q = (1-baseqCA)/2;
             other=baseqCA/3;
         }
-        if(crqG>0 || wsqG>0){
+        if(crqG>0 && c_G>mincovercut || wsqG>0 && w_G>mincovercut){
             ag = nn+ (w_A +c_A+ w_G + c_G)*log(ag_q) + (c_C+c_T+w_C+ w_T)*log(other);
         }
     }
-    if(wsqA>0 && ref ==  'G'){
+    if(wsqA>0 && w_A>mincovercut && ref ==  'G'){
         double ag_q = (1-baseqWA)/2;
         double other=baseqWA/3;
-        if(crqG>0 || wsqG>0){
+        if(crqG>0 && c_G>mincovercut || wsqG>0 && w_G>mincovercut){
             ag = nn+ (w_A + w_G + c_G)*log(ag_q) + (c_C+c_T+w_C+ w_T)*log(other);
         }
     }
      
     //7、AT
-    if((wsqA>0|| crqA>0)&& ref != 'G'){
+    if((wsqA>0 && w_A>mincovercut|| crqA>0 && c_A>mincovercut)&& ref != 'G'){
         double at_q;
         double other;
-        if(wsqA>0){
+        if(wsqA>0 && w_A>mincovercut){
             at_q = (1-baseqWA)/2;
             other=baseqWA/3;
-        }else if(crqA>0){
+        }else if(crqA>0 && c_A>mincovercut){
             at_q = (1-baseqCA)/2;
             other=baseqCA/3;
         }
-        if((wsqT >0 || crqT>0)&& ref != 'C'){
+        if((wsqT >0 || crqT>0 && c_T>mincovercut)&& ref != 'C'){
             at = nn+ (w_A+c_A+w_T+c_T)*log(at_q) + (c_C+w_G+w_C+c_G)*log(other);
         }
-        if(crqT>0 && ref ==  'C'){
+        if(crqT>0 && c_T>mincovercut && ref ==  'C'){
             at = nn+ (w_A+c_A+c_T)*log(at_q) + (c_C+w_G+w_C+c_G)*log(other);
         }
     }
-    if(wsqA>0&& ref ==  'G'){
+    if(wsqA>0 && w_A>mincovercut&& ref ==  'G'){
         double at_q = (1-baseqWA)/2;
         double other=baseqWA/3;
-        if(wsqT>0 || crqT>0){
+        if(wsqT>0 && w_T>mincovercut || crqT>0 && c_T>mincovercut){
             at = nn+ (w_A+w_T+c_T)*log(at_q) + (c_C+w_G+w_C+c_G)*log(other);
         }
     }
      
     //8、TC
-    if(crqT>0 && ref ==  'C'){
+    if(crqT>0 && c_T>mincovercut && ref ==  'C'){
         double tc_q = (1-baseqCT)/2;
         double other=baseqCT/3;
-        if(wsqC>0 || crqC>0){
+        if(wsqC>0 && w_C>mincovercut || crqC>0 && c_C>mincovercut){
             ct=  nn+ (w_C+c_T+c_C)*log(tc_q) + (w_A+w_G+c_G+c_A)*log(other);
         }
     }
-    if((crqT>0||wsqT>0) && ref != 'C'){
+    if((crqT>0 && c_T>mincovercut||wsqT>0 && w_T>mincovercut) && ref != 'C'){
         double tc_q;
         double other;
-        if(crqT>0){
+        if(crqT>0 && c_T>mincovercut){
             tc_q = (1-baseqCT)/2;
             other=baseqCT/3;
-        }else if(wsqT>0){
+        }else if(wsqT>0 && w_T>mincovercut){
             tc_q = (1-baseqWT)/2;
             other=baseqWT/3;
         }
-        if(wsqC>0 || crqC>0){
+        if(wsqC>0 && w_C>mincovercut || crqC>0 && c_C>mincovercut){
             ct=  nn+ (w_C+w_T+c_T+c_C)*log(tc_q) + (w_A+w_G+c_G+c_A)*log(other);
         }
     }
      
     //9、TG
-    if((crqT>0||wsqT>0) && ref != 'C' ){
+    if((crqT>0 && c_T>mincovercut||wsqT>0 && w_T>mincovercut) && ref != 'C' ){
         double tg_q;
         double other;
-        if(crqT>0){
+        if(crqT>0 && c_T>mincovercut){
             tg_q = (1-baseqCT)/2;
             other=baseqCT/3;
-        }else if(wsqT>0){
+        }else if(wsqT>0 && w_T>mincovercut){
             tg_q = (1-baseqWT)/2;
             other=baseqWT/3;
         }
-        if((wsqG>0 || crqG>0|| crqA>0) && ref != 'A'){
+        if((wsqG>0 && w_G>mincovercut || crqG>0 && c_G>mincovercut|| crqA>0 && c_A>mincovercut) && ref != 'A'){
             gt= nn+ (c_T+w_T+w_G+c_G+c_A)*log(tg_q) + (w_A+c_C+w_C)*log(other);        
         }
-        if((wsqG>0 || crqG>0) && ref ==  'A'){
+        if((wsqG>0 && w_G>mincovercut || crqG>0 && c_G>mincovercut) && ref ==  'A'){
             gt= nn+ (c_T+w_T+w_G+c_G)*log(tg_q) + (w_A+c_C+w_C)*log(other);        
         }
     }
-    if(crqT>0 && ref ==  'C'){
+    if(crqT>0 && c_T>mincovercut && ref ==  'C'){
         double tg_q = (1-baseqCT)/2;
         double other=baseqCT/3;
-        if(wsqG>0 || crqG>0||crqA>0){
+        if(wsqG>0 && w_G>mincovercut || crqG>0 && c_G>mincovercut||crqA>0 && c_A>mincovercut){
             gt=  nn+ (c_T+w_G+c_G+c_A)*log(tg_q) + (w_A+c_C+w_C)*log(other);       
         }
     }
      
     //10、CG
-    if((crqC>0 || wsqC>0) && ref ==  'T' ){
+    if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut) && ref ==  'T' ){
         double cg_q;
         double other;
-        if(crqC>0){
+        if(crqC>0 && c_C>mincovercut){
             cg_q = (1-baseqCC)/2;
             other=baseqCC/3;
-        }else if(wsqC>0){
+        }else if(wsqC>0 && w_C>mincovercut){
             cg_q = (1-baseqWC)/2;
             other=baseqWC/3;
         }
         cg= nn+ (c_C+w_G+w_C+c_G+c_A)*log(cg_q) + (w_A+c_T)*log(other);  
     }
-    if((crqC>0 || wsqC>0 || wsqT>0) && ref != 'T'){
+    if((crqC>0 && c_C>mincovercut || wsqC>0 && w_C>mincovercut || wsqT>0 && w_T>mincovercut) && ref != 'T'){
         double cg_q;
         double other;
-        if(crqC>0){
+        if(crqC>0 && c_C>mincovercut){
             cg_q = (1-baseqCC)/2;
             other=baseqCC/3;
-        }else if(wsqC>0){
+        }else if(wsqC>0 && w_C>mincovercut){
             cg_q = (1-baseqWC)/2;
             other=baseqWC/3;
-        }else if(wsqT>0){
+        }else if(wsqT>0 && w_T>mincovercut){
             cg_q = (1-baseqWT)/2;
             other=baseqWT/3;
         }
         if((w_G>0 || c_G>0|| w_T>0) && ref ==  'A'){
             cg= nn+ (c_C+w_G+w_C+c_G+w_T)*log(cg_q) + (w_A+c_T)*log(other);  
         }
-        if((wsqG>0 || crqG>0||crqA>0) && ref != 'A'){
+        if((wsqG>0 && w_G>mincovercut || crqG>0 && c_G>mincovercut||crqA>0 && c_A>mincovercut) && ref != 'A'){
             cg= nn+ (c_C+w_G+w_C+c_G+ w_T+c_A)*log(cg_q) + (w_A+c_T)*log(other);  
         }
     }
