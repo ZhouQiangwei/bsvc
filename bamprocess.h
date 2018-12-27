@@ -30,7 +30,8 @@ struct ARGS{
     //char* bamFileName;
     //char* snpFileName;
     FILE* snpFptr;
-    char* methCgFileName;
+    FILE* methFptr;
+    char* methFileName;   
     char* methChgFileName;
     char* methChhFileName;
     HashNode** hashTable;
@@ -68,8 +69,8 @@ struct MapRecord_Struct
 
 void *npsnpAnalysis(void *arg);
 void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName, char* methChhFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMin, unsigned int mapqThr);
-void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr, char* processChrom);
-void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
+void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr, char* processChrom);
+void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
 
 int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr);
 char nxtChar(char* cigar, int* len);

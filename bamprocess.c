@@ -23,6 +23,7 @@ extern int NTHREAD;
 extern char bamFileName[1024];
 extern char** chrName;
 extern int minvarread;
+extern int methmincover;
 
 int ithreadschr = 0;
 pthread_mutex_t meth_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -30,8 +31,8 @@ pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *npsnpAnalysis(void *arg){
     ARGS *args = (struct ARGS*)arg;
-    if(meth)
-        methProcess(bamFileName, args->methCgFileName, args->methChgFileName, args->methChhFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, mincover, mapqThr);
+    //if(meth)
+    //    methProcess(bamFileName, args->methCgFileName, args->methChgFileName, args->methChhFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, mincover, mapqThr);
 
     //Process SNP
     if(snp){
@@ -53,11 +54,11 @@ void *npsnpAnalysis(void *arg){
                 //FILE* tempfp = fopen(tempoutfile, "w");
                 //snpProcess(tempfp, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
                 //fclose(tempfp);
-                snpProcess(args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
+                snpProcess(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
             }
         }
         else{
-            snpProcess_singlet(args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr);
+            snpProcess_singlet(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr);
         }
         
     }
@@ -103,18 +104,24 @@ void printMeth(FILE* methFptr, int len, char* curChr, unsigned int* w_Mm_CG, uns
     }
 }
 
-void printSnp(FILE* posFptr, char** chrSeqArray, int idx, int len, float minhetfreq, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned short *w_Aq, unsigned short *w_Tq, unsigned short *w_Cq, unsigned short *w_Gq, unsigned short *c_Aq, unsigned short *c_Tq, unsigned short *c_Cq, unsigned short *c_Gq, 
+void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int len, float minhetfreq, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned short *w_Aq, unsigned short *w_Tq, unsigned short *w_Cq, unsigned short *w_Gq, unsigned short *c_Aq, unsigned short *c_Tq, unsigned short *c_Cq, unsigned short *c_Gq, 
     unsigned short *w_Q, unsigned short *c_Q)
 {
-    int i, j, m;
+    int i, j, m,ccover,wcover;
     int v, n, v2, n2;
     float vRate[3];
 
+    //meth v
+    char context[5];
+    float mratio=0;
+    int ct,ga;
     // Record snp sites
     for(i = 0; i < len; i++)
     {
 
         m = w_A[i]+w_T[i]+w_C[i]+w_G[i]+c_A[i]+c_T[i]+c_C[i]+c_G[i];
+        ccover=c_A[i]+c_T[i]+c_C[i]+c_G[i];
+        wcover=w_A[i]+w_T[i]+w_C[i]+w_G[i];
         if(m<1) continue;
         // No snp pt number
         switch(chrSeqArray[idx][i])
@@ -180,23 +187,158 @@ void printSnp(FILE* posFptr, char** chrSeqArray, int idx, int len, float minhetf
             vRate[2] = (float)v/n;
             break;
         }
+        int filterpass=0;
         // Filtering
+        char refbase=chrSeqArray[idx][i];
+        unsigned int wsqA= (unsigned int)((float)w_Aq[i]/w_A[i]+0.5);
+        unsigned int wsqT= (unsigned int)((float)w_Tq[i]/w_T[i]+0.5);
+        unsigned int wsqC= (unsigned int)((float)w_Cq[i]/w_C[i]+0.5);
+        unsigned int wsqG= (unsigned int)((float)w_Gq[i]/w_G[i]+0.5);
+        unsigned int crqA= (unsigned int)((float)c_Aq[i]/c_A[i]+0.5);
+        unsigned int crqT=  (unsigned int)((float)c_Tq[i]/c_T[i]+0.5);
+        unsigned int crqC= (unsigned int)((float)c_Cq[i]/c_C[i]+0.5);
+        unsigned int crqG=  (unsigned int)((float)c_Gq[i]/c_G[i]+0.5);
+        std::string genotypemaybe="NN";
         if(vRate[0] > minhetfreq || vRate[1] > minhetfreq || vRate[2] > minhetfreq )
         {
-            unsigned int wsqA= (unsigned int)((float)w_Aq[i]/w_A[i]+0.5);
-            unsigned int wsqT= (unsigned int)((float)w_Tq[i]/w_T[i]+0.5);
-            unsigned int wsqC= (unsigned int)((float)w_Cq[i]/w_C[i]+0.5);
-            unsigned int wsqG= (unsigned int)((float)w_Gq[i]/w_G[i]+0.5);
-            unsigned int crqA= (unsigned int)((float)c_Aq[i]/c_A[i]+0.5);
-            unsigned int crqT=  (unsigned int)((float)c_Tq[i]/c_T[i]+0.5);
-            unsigned int crqC= (unsigned int)((float)c_Cq[i]/c_C[i]+0.5);
-            unsigned int crqG=  (unsigned int)((float)c_Gq[i]/c_G[i]+0.5);
             double qual=1;
-            std::string genotypemaybe;
-            Bayes(wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG, chrSeqArray[idx][i], i+1, curChr, w_A[i], w_T[i], w_C[i], w_G[i], c_A[i], c_T[i], c_C[i], c_G[i], genotypemaybe, qual);
-            genotype(posFptr, wsqA, wsqT, wsqC,  wsqG,  crqA,  crqT,  crqC,  crqG,  chrSeqArray[idx][i], i+1, curChr,
+            Bayes(wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG, refbase, i+1, curChr, w_A[i], w_T[i], w_C[i], w_G[i], c_A[i], c_T[i], c_C[i], c_G[i], genotypemaybe, qual);
+            filterpass = genotype(posFptr, wsqA, wsqT, wsqC,  wsqG,  crqA,  crqT,  crqC,  crqG,  refbase, i+1, curChr,
      w_A[i],  w_T[i],  w_C[i],  w_G[i],  c_A[i], c_T[i], c_C[i], c_G[i], genotypemaybe, qual);
-            
+        }
+
+        //Meth
+        if(meth && m>=methmincover && m<maxcover){
+            context[0]=refbase;context[1]='\0';
+            //chrM  1   -   CHH 0   434 0.000000    Cq,Tq refbase,genotype
+            if(filterpass==0){
+                
+                if(refbase=='C'){
+                    ct=w_C[i]+w_T[i];
+                    if(ct>methmincover){
+                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i+2 < len){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/(ct), wsqC,wsqT,wcover, ccover, refbase);
+                    }
+                }
+                else if(refbase=='G'){
+                    ga=c_G[i]+c_A[i];
+                    if(ga>methmincover){
+                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i > 1){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase);
+                    }
+                }
+            }else if(filterpass==1 && genotypemaybe!="CT" && genotypemaybe!="AG"){
+                
+                if(genotypemaybe=="CG"){
+                    ct=w_C[i]+w_T[i];
+                    if(ct>methmincover){
+                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i+2 < len){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                    }
+                    ga=c_G[i]+c_A[i];
+                    if(ga>methmincover){
+                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i > 1){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                    }
+                }else if(genotypemaybe[0]=='C' || genotypemaybe[1] == 'C'){
+                    ct=w_C[i]+w_T[i];
+                    if(ct>methmincover){
+                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i+2 < len){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                    }
+                }else if(genotypemaybe[0]=='G' || genotypemaybe[1] == 'G'){
+                    ga=c_G[i]+c_A[i];
+                    if(ga>methmincover){
+                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                            context[0]='C';
+                            context[1]='G';
+                            context[2]='\0';
+                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='G';
+                            context[3]='\0';
+                        }else if(i > 1){
+                            context[0]='C';
+                            context[1]='H';
+                            context[2]='H';
+                            context[3]='\0';
+                        }
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                    }
+                }
+
+            }
         }
 
     }
@@ -903,6 +1045,7 @@ void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName,
     fprintf(stderr, "Meth process ends...\n");
 }
 
+
 void memerror(int nline){
     fprintf(stderr, "Not enough memory for SNP of %d.\n", nline);
 }
@@ -1008,7 +1151,7 @@ void creat_mem_snp(unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&
     }
 }
 
-void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
+void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
     int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom)
 {
     int i, j, off, idx, len;
@@ -1103,7 +1246,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
                 exit(0);
                 finCnt = rowCnt;
                 // Print
-                printSnp(snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q);
+                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q);
                 // Memory init
                 init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
             }
@@ -1197,7 +1340,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
                 if(record->strand == '+') {
                     switch(record->seq[i]) {
                         case 'A':
-                            if(record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
+                            if(0 && record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
                                 c_G[off]++;
                                 c_Gq[off] += (unsigned short)(record->qual[i] - 33);
                                 c_Q[off] += record->mapq;
@@ -1216,7 +1359,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
                             }
                             break;
                         case 'T':
-                            if(record->r12 == 1 && chrSeqArray[idx][off] == 'C') {
+                            if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'C') {
                                 w_C[off]++;
                                 w_Cq[off] += (unsigned short)(record->qual[i] - 33);
                                 w_Q[off] += record->mapq;
@@ -1263,7 +1406,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
                 else {
                     switch(record->seq[i]) {
                         case 'A':
-                            if(record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
+                            if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
                                 c_G[off]++;
                                 c_Gq[off] += (unsigned short)(record->qual[i] - 33);
                                 c_Q[off] += record->mapq;
@@ -1282,7 +1425,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
                             }
                             break;
                         case 'T':
-                            if(record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
+                            if(0 &&record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
                                 w_C[off]++;
                                 w_Cq[off] += (unsigned short)(record->qual[i] - 33);
                                 w_Q[off] += record->mapq;
@@ -1350,7 +1493,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
     if(finCnt < rowCnt) {
         // Print
         pthread_mutex_lock(&output_mutex);
-        printSnp(snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
         pthread_mutex_unlock(&output_mutex);
         // Memory gathering for x_X
         free(w_A);
@@ -1386,7 +1529,7 @@ void snpProcess(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** c
 
 
 //single thread
-void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr)
+void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr)
 {
     int i, j, off, idx, len;
     int m, n, cnt, iread;
@@ -1456,7 +1599,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
                 // Update
                 finCnt = rowCnt;
                 // Print
-                printSnp(snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
                 // Memory init
                 init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, longestchr);
             }
@@ -1548,7 +1691,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
                 if(record->strand == '+') {
                     switch(record->seq[i]) {
                         case 'A':
-                            if(record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
+                            if(0 && record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
                                 c_G[off]++;
                                 c_Gq[off] += (unsigned short)(record->qual[i] - 33);
                                 c_Q[off] += record->mapq;
@@ -1567,7 +1710,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
                             }
                             break;
                         case 'T':
-                            if(record->r12 == 1 && chrSeqArray[idx][off] == 'C') {
+                            if(0 && record->r12 == 1 && chrSeqArray[idx][off] == 'C') { //0&&for methylation
                                 w_C[off]++;
                                 w_Cq[off] += (unsigned short)(record->qual[i] - 33);
                                 w_Q[off] += record->mapq;
@@ -1614,7 +1757,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
                 else {
                     switch(record->seq[i]) {
                         case 'A':
-                            if(record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
+                            if(0 && record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
                                 c_G[off]++;
                                 c_Gq[off] += (unsigned short)(record->qual[i] - 33);
                                 c_Q[off] += record->mapq;
@@ -1633,7 +1776,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
                             }
                             break;
                         case 'T':
-                            if(record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
+                            if(0 && record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
                                 w_C[off]++;
                                 w_Cq[off] += (unsigned short)(record->qual[i] - 33);
                                 w_Q[off] += record->mapq;
@@ -1700,7 +1843,7 @@ void snpProcess_singlet(FILE* snpFptr, char* bamFileName, HashNode** hashTable, 
     // Last batch
     if(finCnt < rowCnt) {
         // Print
-        printSnp(snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
         // Memory gathering for x_X
         free(w_A);
         free(w_T);

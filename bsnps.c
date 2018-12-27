@@ -39,6 +39,7 @@ char** chrName;
 int othercover=80;
 float minvarrate=0.3;
 int minvarread=5;
+int methmincover=5;
 
 struct Threading
 {
@@ -67,10 +68,11 @@ int main(int argc, char* argv[])
         "\t--pvalue              Default p-value threshold for calling variants, default: 0.05\n"
         "\t--minhetfreq          Minimum hetero frequency threshold, default: 0.1\n"
         "\t--minhomfreq          Minimum homo frequency threshold, default: 0.85\n"
-        "\t-m                    Report DNA methylation calling positions. default: No report\n"
-        "\t-mcg                  DNA methylation CG file.\n"
-        "\t-mchg                 DNA methylation CHG file.\n"
-        "\t-mchh                 DNA methylation CHH file.\n"
+        //"\t-m                    Report DNA methylation calling positions. default: No report\n"
+        "\t-mc [filename]        Report DNA methylation calling positions, and DNA methylation file.\n"
+        "\t--methmincover        DNA methylation minimum read depth at a position to make a call, default: 5\n"
+        //"\t-mchg                 DNA methylation CHG file.\n"
+        //"\t-mchh                 DNA methylation CHH file.\n"
         "\t-h|--help             BSNPS usage.\n"
         "\t------------          If variant position filter quality is Low, we also can set `AD>minvarread, ALFR>minvarrate, pvalue<pvalue_cutoff+0.01` as PASS.\n"
         "\t--minvarread          default: 5\n"
@@ -79,9 +81,9 @@ int main(int argc, char* argv[])
 
     char refSeqFile[1024];
     char snpFileName[1024];
-    char methCgFileName[1024];
-    char methChgFileName[1024];
-    char methChhFileName[1024];
+    char methFileName[1024];
+    //char methChgFileName[1024];
+    //char methChhFileName[1024];
     for(int i=1;i<argc;i++)
     {
         if(!strcmp(argv[i], "-g") ||!strcmp(argv[i], "--genome")  )
@@ -93,24 +95,26 @@ int main(int argc, char* argv[])
         }else if(!strcmp(argv[i], "-o") ||!strcmp(argv[i], "--output")  )
         {
             strcpy(snpFileName, argv[++i]);
-        }else if(!strcmp(argv[i], "-mcg") )
+        }else if(!strcmp(argv[i], "-mc") )
         {
-            strcpy(methCgFileName, argv[++i]);
-        }else if(!strcmp(argv[i], "-mchg") )
+            meth=1;
+            strcpy(methFileName, argv[++i]);
+        }/*else if(!strcmp(argv[i], "-mchg") )
         {
             strcpy(methChgFileName, argv[++i]);
         }else if(!strcmp(argv[i], "-mchh") )
         {
             strcpy(methChhFileName, argv[++i]);
-        }else if(!strcmp(argv[i], "-m") )
-        {
-            meth=1;
-        }else if(!strcmp(argv[i], "--minquali") )
+        }*/
+        else if(!strcmp(argv[i], "--minquali") )
         {
             minquali=atoi(argv[++i]);
         }else if(!strcmp(argv[i], "--minQ") )
         {
             mapqThr=atoi(argv[++i]);
+        }else if(!strcmp(argv[i], "--methmincover") )
+        {
+            methmincover=atoi(argv[++i]);
         }else if(!strcmp(argv[i], "--minread2") )
         {
             minread2=atoi(argv[++i]);
@@ -144,6 +148,9 @@ int main(int argc, char* argv[])
         }else if(!strcmp(argv[i], "-p") ||!strcmp(argv[i], "--threads")  )
         {
             NTHREAD=atoi(argv[++i]);
+        }else{
+            fprintf(stderr, "There is no %s paramater.\n", argv[i]);
+            exit(0);
         }
 
     }
@@ -172,12 +179,12 @@ int main(int argc, char* argv[])
 
     fprintf(stderr, "SNP File: %s\n", snpFileName);
     if(meth){
-        fprintf(stderr, "MethCg File: %s\n", methCgFileName);
-        fprintf(stderr, "MethChg File: %s\n", methChgFileName);
-        fprintf(stderr, "MethChh File: %s\n", methChhFileName);
-        args.methCgFileName = methCgFileName;
-        args.methChgFileName = methChgFileName;
-        args.methChhFileName = methChhFileName;
+        fprintf(stderr, "Meth File: %s\n", methFileName);
+        //fprintf(stderr, "MethChg File: %s\n", methChgFileName);
+        //fprintf(stderr, "MethChh File: %s\n", methChhFileName);
+        //args.methFileName = methFileName;
+        //args.methChgFileName = methChgFileName;
+        //args.methChhFileName = methChhFileName;
     }
     fprintf(stderr, "Minimum base quality: %d\n", minquali);
     fprintf(stderr, "Minimum supporting reads at a position to call variants: %d\n", minread2);
@@ -232,6 +239,11 @@ int main(int argc, char* argv[])
     chrDone[i] = 0;
     // }}
 
+    //Meth File
+    
+    args.methFptr = fopen(methFileName, "w");
+    //chrM  1   -   CHH 0   434 0.000000    Cq,Tq refbase,genotype
+    fprintf(args.methFptr, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
     //////////////////////////////////////////////////////////////////////////////
     // SNP process
     //////////////////////////////////////////////////////////////////////////////
@@ -296,6 +308,7 @@ int main(int argc, char* argv[])
         npsnpAnalysis(&args);
     }
     fclose(args.snpFptr);
+    fclose(args.methFptr);
     fprintf(stderr, "SNP process done!\n");
 
     return 0;
