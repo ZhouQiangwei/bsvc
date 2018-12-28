@@ -52,10 +52,10 @@ void *npsnpAnalysis(void *arg){
                 pthread_mutex_unlock(&meth_counter_mutex);
                 // SNP outfile
                 if(multiout){
-                    sprintf(tempoutfile, "%s.%s.vcfb", args->snpFileName, chrName[processchrom]);
-                    FILE* snptempfp = fopen(tempoutfile, "wb");
-                    sprintf(tempoutfile, "%s.%s.vcfb", args->methFileName, chrName[processchrom]);
-                    FILE* methtempfp = fopen(tempoutfile, "wb");
+                    sprintf(tempoutfile, "%s.%s.vcf", args->snpFileName, chrName[processchrom]);
+                    FILE* snptempfp = fopen(tempoutfile, "w");
+                    sprintf(tempoutfile, "%s.%s.vcf", args->methFileName, chrName[processchrom]);
+                    FILE* methtempfp = fopen(tempoutfile, "w");
                     snpProcess_multiop(methtempfp, snptempfp, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
                     fclose(snptempfp);
                     fclose(methtempfp);

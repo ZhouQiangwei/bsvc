@@ -21,7 +21,7 @@
 #include "bamprocess.h"
 #include "getchrLen.h"
 
-int multiout=1;
+int multiout=0;
 unsigned int longestchr = 10000;
 int minquali =20;
 int mincover=10;
