@@ -1,3 +1,5 @@
 submodules from:
-htslib: 
-samtools:
+
+htslib: https://github.com/samtools/htslib.git
+ 
+samtools: https://github.com/samtools/samtools.git
