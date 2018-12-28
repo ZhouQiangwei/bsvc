@@ -24,6 +24,7 @@ extern char bamFileName[1024];
 extern char** chrName;
 extern int minvarread;
 extern int methmincover;
+extern int multiout;
 
 int ithreadschr = 0;
 pthread_mutex_t meth_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -37,11 +38,11 @@ void *npsnpAnalysis(void *arg){
     //Process SNP
     if(snp){
         // SNP outfile
-        if(args->snpFptr == NULL) {
+        if(!multiout && args->snpFptr == NULL) {
             fprintf(stderr, "Could not open SNP output file!\n");
             exit(1);
         }
-        //char tempoutfile[1000];
+        char tempoutfile[1000];
         if(NTHREAD>1){
             int processchrom=0;
             for(; ithreadschr < args->chrCnt;){
@@ -50,11 +51,16 @@ void *npsnpAnalysis(void *arg){
                 ithreadschr++;
                 pthread_mutex_unlock(&meth_counter_mutex);
                 // SNP outfile
-                //sprintf(tempoutfile, "test.%s.vcf", chrName[processchrom]);
-                //FILE* tempfp = fopen(tempoutfile, "w");
-                //snpProcess(tempfp, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
-                //fclose(tempfp);
-                snpProcess(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
+                if(multiout){
+                    sprintf(tempoutfile, "%s.%s.vcfb", args->snpFileName, chrName[processchrom]);
+                    FILE* snptempfp = fopen(tempoutfile, "wb");
+                    sprintf(tempoutfile, "%s.%s.vcfb", args->methFileName, chrName[processchrom]);
+                    FILE* methtempfp = fopen(tempoutfile, "wb");
+                    snpProcess_multiop(methtempfp, snptempfp, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
+                    fclose(snptempfp);
+                    fclose(methtempfp);
+                }else
+                    snpProcess(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
             }
         }
         else{
@@ -231,7 +237,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/(ct), wsqC,wsqT,wcover, ccover, refbase);
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/(ct), wsqC,wsqT,wcover, ccover, refbase);
                     }
                 }
                 else if(refbase=='G'){
@@ -1071,7 +1077,7 @@ void creat_mem_snp(unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&
     unsigned short *&c_T ,unsigned short *&c_C ,unsigned short *&c_G, unsigned short *&w_Aq ,unsigned short *&w_Tq ,unsigned short *&w_Cq ,
     unsigned short *&w_Gq , unsigned short *&c_Aq ,unsigned short *&c_Tq ,unsigned short *&c_Cq ,unsigned short *&c_Gq, unsigned short *&w_Q, 
     unsigned short *&c_Q, unsigned int lenchr){
-    fprintf(stderr, "Memory alloction for SNP, array len: %u\n", lenchr);
+    fprintf(stderr, "Memory alloction for SNP/meth, array len: %u\n", lenchr);
     // Memory alloction for x_X
     if(!(w_A = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
         memerror(1);
@@ -1495,6 +1501,7 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
         pthread_mutex_lock(&output_mutex);
         printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
         pthread_mutex_unlock(&output_mutex);
+        fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", len);
         // Memory gathering for x_X
         free(w_A);
         free(w_T);
@@ -1527,6 +1534,381 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
     
 }
 
+//muti-outfile
+void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
+    int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom)
+{
+    int i, j, off, idx, len;
+    int m, n, cnt, iread;
+    int* chrDone = (int*)calloc(chrCnt, sizeof(int));
+
+    MapRecord* record = (MapRecord*)malloc(sizeof(MapRecord));
+    record->qname = (char*)malloc(sizeof(char) * 1000);
+    record->chrome = (char*)malloc(sizeof(char) * 1000);
+    record->cigar = (char*)malloc(sizeof(char) * 1000);
+    //record->tmp = (char*)malloc(sizeof(char) * 1000);
+    record->seq = (char*)malloc(sizeof(char) * 1000);
+    record->seqBuf = (char*)malloc(sizeof(char) * 1000);
+    record->qual = (char*)malloc(sizeof(char) * 1000);
+    record->qualBuf = (char*)malloc(sizeof(char) * 1000);
+    record->comBuf = (char*)malloc(sizeof(char) * 1000);
+
+    unsigned short *w_A = NULL;
+    unsigned short *w_T = NULL;
+    unsigned short *w_C = NULL;
+    unsigned short *w_G = NULL;
+    unsigned short *c_A = NULL;
+    unsigned short *c_T = NULL;
+    unsigned short *c_C = NULL;
+    unsigned short *c_G = NULL;
+
+    unsigned short *w_Aq = NULL;
+    unsigned short *w_Tq = NULL;
+    unsigned short *w_Cq = NULL;
+    unsigned short *w_Gq = NULL;
+    unsigned short *c_Aq = NULL;
+    unsigned short *c_Tq = NULL;
+    unsigned short *c_Cq = NULL;
+    unsigned short *c_Gq = NULL;
+
+    unsigned short *w_Q = NULL;
+    unsigned short *c_Q = NULL;
+
+    idx = hash_table_lookup(hashTable, processChrom);
+    if(idx == -1) {
+        fprintf(stderr, "%s not found in chrome name array, chr len file.\n", processChrom);
+        exit(1);
+    }
+
+    int rowCnt = 0;
+    int finCnt = 0;
+    char curChr[100] = "chr1234567890";
+    uint8_t *s, *t;
+    bam_header_t *header;
+    
+    samFile *infp=0;
+    if ((infp = sam_open(bamFileName)) == 0) { //, "r"
+        fprintf(stderr, "Fail to open BAM file %s\n", bamFileName);
+        exit(1);
+    }
+
+    //bam index
+    hts_idx_t *bamidx = sam_index_load(infp, bamFileName); // load index
+    if (bamidx == 0) { // index is unavailable
+        fprintf(stderr, "Muiltype threads only works for indexed BAM files, please run samtools index %s first.\n", bamFileName);
+        exit(0);
+    }
+    header = sam_hdr_read(infp);
+
+    hts_itr_t *iter = sam_itr_querys(bamidx, header, processChrom);
+    if (iter == NULL) { // region invalid or reference name not found
+        return;
+    }
+
+    bam1_t* b = bam_init1();
+    if(b == NULL) {
+        fprintf(stderr, "Cannot init bam structure!\n");
+        exit(1);
+    }
+
+    len = chrLen[idx];
+    fprintf(stderr, "Processing chromosome: %s\n", processChrom);
+    creat_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
+    
+    while( sam_itr_next(infp, iter, b) >= 0 ) {
+        // Parse record
+        if(parseBuffer(header, b, record, mapqThr) == 1)
+            continue;
+        // Check chrome
+        if(strcmp(curChr, record->chrome) != 0) {
+            // Save old chrome statics results
+            
+            if(rowCnt > 0) {
+                // should not be here
+                // Update
+                fprintf(stderr, "\ncan not here!\n");
+                exit(0);
+                finCnt = rowCnt;
+                // Print
+                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q);
+                // Memory init
+                init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
+            }
+            
+
+            // Update current chrome
+            strcpy(curChr, record->chrome);
+
+            // Get chrome length
+            idx = hash_table_lookup(hashTable, curChr);
+            if(idx == -1) {
+                fprintf(stderr, "%s not found in chrome name array.\n", curChr);
+                exit(1);
+            }
+            len = chrLen[idx];
+
+            // Check if chrome has been processed
+            if(chrDone[idx] != 0) {
+                fprintf(stderr, "%s has already been processed. The bam file is not sorted.\n", curChr);
+                exit(1);
+            }
+            chrDone[idx] = 1;
+        }
+
+        /////////////////////////////////////////////////
+        // Filter Step 1: Base quality
+        /////////////////////////////////////////////////
+        for(i = 0; i < record->len; i++) {
+            if(record->seq[i] != 'N' && (unsigned short)(record->qual[i] - 33) < minquali)
+                record->seq[i] = 'N';
+        }
+        /////////////////////////////////////////////////
+        // Filter Step 2: SNP per base
+        /////////////////////////////////////////////////
+        //printf("\n%s %d %s %d\n", record->qname, record->len, record->seq, record->offset);
+        off = record->offset - 1;
+        iread = (int)(record->len * errorrate + 0.5);
+        if(iread < 1)
+            iread = 1;
+        cnt = 0;
+        for(i = 0; i < record->len; i++) {
+            if(record->strand == '+') {
+                switch(record->seq[i]) {
+                    case 'A':
+                        if(chrSeqArray[idx][off] != 'A' && (!(record->r12 == 2 && chrSeqArray[idx][off] == 'G')))
+                            cnt++;
+                        break;
+                    case 'T':
+                        if(chrSeqArray[idx][off] != 'T' && (!(record->r12 == 1 && chrSeqArray[idx][off] == 'C')))
+                            cnt++;
+                        break;
+                    case 'C':
+                        if(chrSeqArray[idx][off] != 'C')
+                            cnt++;
+                        break;
+                    case 'G':
+                        if(chrSeqArray[idx][off] != 'G')
+                            cnt++;
+                        break;
+                }
+            }
+            else {
+                switch(record->seq[i]) {
+                    case 'A':
+                        if(chrSeqArray[idx][off] != 'A' && (!(record->r12 == 1 && chrSeqArray[idx][off] == 'G')))
+                            cnt++;
+                        break;
+                    case 'T':
+                        if(chrSeqArray[idx][off] != 'T' && (!(record->r12 == 2 && chrSeqArray[idx][off] == 'C')))
+                            cnt++;
+                        break;
+                    case 'C':
+                        if(chrSeqArray[idx][off] != 'C')
+                            cnt++;
+                        break;
+                    case 'G':
+                        if(chrSeqArray[idx][off] != 'G')
+                            cnt++;
+                        break;
+                }
+            }
+
+            off++;
+        }
+
+        // Snp per read
+        //printf("\n%d < %d %s %f %s %d\n", cnt, iread, record->qname, errorrate, record->qual, record->offset - 1);
+        if(cnt <= iread) {
+            off = record->offset - 1;
+            for(i = 0; i < record->len; i++) {
+                if(record->strand == '+') {
+                    switch(record->seq[i]) {
+                        case 'A':
+                            if(0 && record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
+                                c_G[off]++;
+                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            else {
+                                if(record->r12 == 1) {
+                                    w_A[off]++;
+                                    w_Aq[off] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[off] += record->mapq;
+                                }
+                                else {
+                                    c_A[off]++;
+                                    c_Aq[off] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[off] += record->mapq;
+                                }
+                            }
+                            break;
+                        case 'T':
+                            if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'C') {
+                                w_C[off]++;
+                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                if(record->r12 == 1) {
+                                    w_T[off]++;
+                                    w_Tq[off] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[off] += record->mapq;
+                                 }
+                                else {
+                                    c_T[off]++;
+                                    c_Tq[off] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[off] += record->mapq;
+                                }
+                            }
+                            break;
+                        case 'C':
+                            if(record->r12 == 1) {
+                                w_C[off]++;
+                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                c_C[off]++;
+                                c_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            break;
+                        case 'G':
+                            if(record->r12 == 1) {
+                                w_G[off]++;
+                                w_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                c_G[off]++;
+                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            break;
+                    }
+                }
+                else {
+                    switch(record->seq[i]) {
+                        case 'A':
+                            if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
+                                c_G[off]++;
+                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            else {
+                                if(record->r12 == 2) {
+                                    w_A[off]++;
+                                    w_Aq[off] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[off] += record->mapq;
+                                }
+                                else {
+                                    c_A[off]++;
+                                    c_Aq[off] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[off] += record->mapq;
+                                }
+                            }
+                            break;
+                        case 'T':
+                            if(0 &&record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
+                                w_C[off]++;
+                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                if(record->r12 == 2) {
+                                    w_T[off]++;
+                                    w_Tq[off] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[off] += record->mapq;
+                                }
+                                else {
+                                    c_T[off]++;
+                                    c_Tq[off] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[off] += record->mapq;
+                                }
+                            }
+                            break;
+                        case 'C':
+                            if(record->r12 == 2) {
+                                w_C[off]++;
+                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                c_C[off]++;
+                                c_Cq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            break;
+                        case 'G':
+                            if(record->r12 == 2) {
+                                w_G[off]++;
+                                w_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[off] += record->mapq;
+                            }
+                            else {
+                                c_G[off]++;
+                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[off] += record->mapq;
+                            }
+                            break;
+                    }
+                }
+
+                off++;
+            }
+        }
+        else {
+            #ifdef __MY_DEBUG__
+            if(strcmp(record->chrome, __DEBUG_CHR__) == 0 && record->offset <= __DEBUG_POS__ && record->offset+record->len >= __DEBUG_POS__) {
+                fprintf(stderr, "read discarded because snp-ratio overflow. [threshold %d, actually %d.]\n", iread, cnt);
+                #ifdef __MY_DEBUG_READ__
+                dispRecord(record);
+                #endif
+            }
+            #endif
+        }
+        // Update row counter
+        rowCnt++;
+        if(rowCnt % 100000 == 0)
+            fprintf(stderr, "%s: %d reads have been dealed.\n", curChr, rowCnt);
+    }
+
+    // Last batch
+    if(finCnt < rowCnt) {
+        // Print
+        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+        // Memory gathering for x_X
+        fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", len);
+        free(w_A);
+        free(w_T);
+        free(w_C);
+        free(w_G);
+        free(c_A);
+        free(c_T);
+        free(c_C);
+        free(c_G);
+        // Memory gathering for x_Xq
+        free(w_Aq);
+        free(w_Tq);
+        free(w_Cq);
+        free(w_Gq);
+        free(c_Aq);
+        free(c_Tq);
+        free(c_Cq);
+        free(c_Gq);
+
+        // Memory gathering for x_Q
+        free(w_Q);
+        free(c_Q);
+    }
+
+    bam_header_destroy(header);
+    //bam_close(in);
+    sam_close(infp);
+    bam_destroy1(b);
+    hts_itr_destroy(iter);
+    
+}
 
 //single thread
 void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr)
@@ -1845,6 +2227,7 @@ void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
         // Print
         printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
         // Memory gathering for x_X
+        fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", longestchr);
         free(w_A);
         free(w_T);
         free(w_C);

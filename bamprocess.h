@@ -31,9 +31,8 @@ struct ARGS{
     //char* snpFileName;
     FILE* snpFptr;
     FILE* methFptr;
-    char* methFileName;   
-    char* methChgFileName;
-    char* methChhFileName;
+    char* methFileName;
+    char* snpFileName; 
     HashNode** hashTable;
     char** chrSeqArray;
     int* chrLen;
@@ -71,6 +70,7 @@ void *npsnpAnalysis(void *arg);
 void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName, char* methChhFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMin, unsigned int mapqThr);
 void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr, char* processChrom);
 void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
+void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom);
 
 int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr);
 char nxtChar(char* cigar, int* len);

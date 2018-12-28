@@ -111,7 +111,7 @@ void processGenotype(double AA,double AC,double AT,double AG,double CC,double CG
 void Bayes(int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, int crqG, char refbase, unsigned int pos, char* chrom,
     int w_A, int w_T, int w_C, int w_G, int c_A, int c_T, int c_C, int c_G, std::string& genotypemaybe, double &qual)
 {
-    int mincovercut=1;
+    int mincovercut=0;
     //print "line[0]\n";
     //double ptransition=0.00066;
     //double ptransversion=0.00033;

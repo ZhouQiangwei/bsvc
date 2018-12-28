@@ -9,9 +9,9 @@ TARGET = bsnps
 TOCOMPILE = bsnps.o bamprocess.o hashtable.o readgenome.o fisher.o bayes.o getchrLen.o genotype.o
 
 all: ${TOCOMPILE}
-	make -C $(HTSLIB)
-	make clean-so -C $(HTSLIB)
-	make -C $(SAMTOOLS)
+	make -C $(HTSLIB) lib-static
+	#make clean-so -C $(HTSLIB)
+	make -C $(SAMTOOLS) lib
 	${CC} $(LDFLAGS) -o $(TARGET) ${TOCOMPILE} ${LIBS}
 
 .c.o:

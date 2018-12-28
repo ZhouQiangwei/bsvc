@@ -26,9 +26,17 @@ int printSNP(FILE* posFptr, char* chrom, int pos, char refbase, char* altbase, i
         pvalue < pvalue_cutoff+0.01) ){
         if(gt==1)
             fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t0/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq);
-        else if(gt==2)
-            fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/2:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f,%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq, varfreq2);
-        else if(gt==3)
+        else if(gt==2 && ad>=8){
+            if(varfreq<0.1 && varfreq2>0.5){
+                fprintf(posFptr, "%s\t%d\t.\t%c\t%c\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase[2], genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq2);
+            }else if(varfreq2<0.1 && varfreq>0.5){
+                fprintf(posFptr, "%s\t%d\t.\t%c\t%c\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase[0], genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq);
+
+            }
+            else fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/2:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f,%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq, varfreq2);
+        }else if(gt==2 && ad<8){
+            fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tLow\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/2:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f,%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq, varfreq2);
+        }else if(gt==3)
             fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq);
         else fprintf(stderr, "%s\t%d\t%c\t%s can not define the genotype type\n", chrom, pos, refbase, altbase);
         return 1;
@@ -234,7 +242,7 @@ int genotype(FILE* posFptr, int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int 
             int depth=w_A+c_T+w_T;
             double expectvar = (double) pow(0.1, ((qvalueA+qvalueT)/10))/3;
             double pvalue = fishers_exact((int)expectvar*totaldepth,totaldepth,varA+varT, totaldepth);
-
+            //qw
             if(totaldepth >= mincover  && qvalueA >= minquali && qvalueT>=minquali && varA >=minread2 && varT>=minread2 ){
                 double G2A=(double) varA/Wtotaldepth;
                 double G2T=(double) varT/totaldepth;
@@ -989,15 +997,15 @@ int genotype(FILE* posFptr, int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int 
                 double T2G= (double)varG/depth;
                 double T2C= (double)varC/depth;
                 if(T2G>=minhetfreq && T2C>=minhetfreq){
-                    filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 1 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2G, T2C);
+                    filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 1 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2C, T2G);
                 }else{
-                    filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 0 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2G, T2C);
+                    filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 0 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2C, T2G);
                 }
 
             }else{
                 double T2G= (double)varG/depth;
                 double T2C= (double)varC/depth;
-                filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 0 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2G, T2C);
+                filpass = printSNP(posFptr, chrom, pos, refbase, altbase, genoqual, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, 0 , wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG,totaldepth, adf, adr, ad, 2, pvalue, T2C, T2G);
             }
         }
         if(refbase == 'C'){//C>CG

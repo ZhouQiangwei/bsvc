@@ -21,6 +21,7 @@
 #include "bamprocess.h"
 #include "getchrLen.h"
 
+int multiout=1;
 unsigned int longestchr = 10000;
 int minquali =20;
 int mincover=10;
@@ -71,6 +72,7 @@ int main(int argc, char* argv[])
         //"\t-m                    Report DNA methylation calling positions. default: No report\n"
         "\t-mc [filename]        Report DNA methylation calling positions, and DNA methylation file.\n"
         "\t--methmincover        DNA methylation minimum read depth at a position to make a call, default: 5\n"
+        "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
         //"\t-mchg                 DNA methylation CHG file.\n"
         //"\t-mchh                 DNA methylation CHH file.\n"
         "\t-h|--help             BSNPS usage.\n"
@@ -240,14 +242,14 @@ int main(int argc, char* argv[])
     // }}
 
     //Meth File
-    
+    if(multiout) args.methFileName = methFileName;
     args.methFptr = fopen(methFileName, "w");
-    //chrM  1   -   CHH 0   434 0.000000    Cq,Tq refbase,genotype
     fprintf(args.methFptr, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
     //////////////////////////////////////////////////////////////////////////////
     // SNP process
     //////////////////////////////////////////////////////////////////////////////
     fprintf(stderr, "SNP process ...\n");
+    if(multiout) args.snpFileName = snpFileName;
     args.snpFptr = fopen(snpFileName, "w");
     
     //////////////////////////////////////////////////////////////////////////////
@@ -283,6 +285,7 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////////////////////////////////////
 
     fprintf(args.snpFptr, "%s\n", vcfheader);
+
     if (NTHREAD)
     {
         Threading* Thread_Info=(Threading*) malloc(sizeof(Threading)*NTHREAD);
@@ -307,8 +310,20 @@ int main(int argc, char* argv[])
         args.ThreadID=0;
         npsnpAnalysis(&args);
     }
+    /*   
+    if(multiout){
+        char tempoutfile[1000];
+        for(int i=0;i<chrCnt;i++){
+            sprintf(tempoutfile, "%s.%s.vcf", args->snpFileName, chrName[processchrom]);
+            FILE* snptempfp = fopen(tempoutfile, "r");
+
+            fclose(snptempfp);
+        }
+    }
+    */
     fclose(args.snpFptr);
     fclose(args.methFptr);
+
     fprintf(stderr, "SNP process done!\n");
 
     return 0;
