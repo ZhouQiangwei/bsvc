@@ -16,6 +16,7 @@ extern int minread2;
 extern int minvarread;
 extern float minvarrate;
 extern int othercover;
+extern int printLowQ;
 
 int printSNP(FILE* posFptr, char* chrom, int pos, char refbase, char* altbase, int genoqual, int w_A, int w_T, int w_C, int w_G, int c_A, int c_T, int c_C, int c_G, 
     int filter, int wsqA,int wsqT,int wsqC, int wsqG, int crqA, int crqT, int crqC, int crqG, int totaldepth, int adf, int adr, int ad, 
@@ -34,13 +35,13 @@ int printSNP(FILE* posFptr, char* chrom, int pos, char refbase, char* altbase, i
 
             }
             else fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/2:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f,%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq, varfreq2);
-        }else if(gt==2 && ad<8){
+        }else if(printLowQ && gt==2 && ad<8){
             fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tLow\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/2:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f,%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq, varfreq2);
         }else if(gt==3)
             fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tPASS\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t1/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq);
         else fprintf(stderr, "%s\t%d\t%c\t%s can not define the genotype type\n", chrom, pos, refbase, altbase);
         return 1;
-    }else if(filter==1 || pvalue < pvalue_cutoff){
+    }else if(printLowQ && (filter==1 || pvalue < pvalue_cutoff)){
         if(gt==1)
             fprintf(posFptr, "%s\t%d\t.\t%c\t%s\t%d\tLow\tNS=1;DP=%d;ADF=%d;ADR=%d;AD=%d;\tGT:PVAL:BSD:BSQ:ALFR\t0/1:%.3f:%d,%d,%d,%d,%d,%d,%d,%d:%d,%d,%d,%d,%d,%d,%d,%d:%.2f\n", chrom, pos, refbase, altbase, genoqual, totaldepth, adf, adr, ad, pvalue, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G,wsqA, wsqT, wsqC, wsqG, crqA, crqT, crqC, crqG, varfreq);
         else if(gt==2)

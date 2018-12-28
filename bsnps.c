@@ -41,6 +41,7 @@ int othercover=80;
 float minvarrate=0.3;
 int minvarread=5;
 int methmincover=5;
+int printLowQ=0;
 
 struct Threading
 {
@@ -56,9 +57,9 @@ int main(int argc, char* argv[])
     const char* Help_String="Command Format :  BSsnpScan [options] -g GENOME -i <Bamfile> -o <SNP outfile>\n"
         "\nUsage:\n"
         "\t-g|--genome           Genome\n"
-        "\t-i|--input            Sam format file\n"
+        "\t-i|--input            Sorted bam format file\n"
         "\t-o|--output           SNP output file\n"
-        "\t-p|--threads          the number of threads.\n"
+        "\t-p|--threads          the number of threads, must have .bai file by samtools index in the bam folder.\n"
         "\t--minQ                Minimum mapping quality score to count a read, default: 20\n"
         "\t--minquali            Minimum base quality at a position to count a read, default: 15\n"
         "\t--errorrate           Minimum unmatch base allowed to count a read, default: 0.1\n"
@@ -69,7 +70,8 @@ int main(int argc, char* argv[])
         "\t--pvalue              Default p-value threshold for calling variants, default: 0.05\n"
         "\t--minhetfreq          Minimum hetero frequency threshold, default: 0.1\n"
         "\t--minhomfreq          Minimum homo frequency threshold, default: 0.85\n"
-        //"\t-m                    Report DNA methylation calling positions. default: No report\n"
+        "\t--printLowQ           Print Low Quality SNP, default: 0. [0 or 1]\n"
+        //"\t-m                  Report DNA methylation calling positions. default: No report\n"
         "\t-mc [filename]        Report DNA methylation calling positions, and DNA methylation file.\n"
         "\t--methmincover        DNA methylation minimum read depth at a position to make a call, default: 5\n"
         "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
@@ -111,6 +113,9 @@ int main(int argc, char* argv[])
         else if(!strcmp(argv[i], "--minquali") )
         {
             minquali=atoi(argv[++i]);
+        }else if(!strcmp(argv[i], "--printLowQ") )
+        {
+            printLowQ=atoi(argv[++i]);
         }else if(!strcmp(argv[i], "--minQ") )
         {
             mapqThr=atoi(argv[++i]);
