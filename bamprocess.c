@@ -300,7 +300,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(genotypemaybe[0]=='C' || genotypemaybe[1] == 'C'){
                     ct=w_C[i]+w_T[i];
@@ -340,7 +340,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }
 
