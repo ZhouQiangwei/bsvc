@@ -248,8 +248,10 @@ int main(int argc, char* argv[])
 
     //Meth File
     if(multiout) args.methFileName = methFileName;
-    args.methFptr = fopen(methFileName, "w");
-    fprintf(args.methFptr, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
+    if(meth == 1){
+        args.methFptr = fopen(methFileName, "w");
+        fprintf(args.methFptr, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
+    }
     //////////////////////////////////////////////////////////////////////////////
     // SNP process
     //////////////////////////////////////////////////////////////////////////////
@@ -327,7 +329,7 @@ int main(int argc, char* argv[])
     }
     */
     fclose(args.snpFptr);
-    fclose(args.methFptr);
+    if(meth==1) fclose(args.methFptr);
 
     fprintf(stderr, "SNP process done!\n");
 
