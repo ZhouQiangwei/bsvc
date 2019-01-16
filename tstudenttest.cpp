@@ -76,7 +76,7 @@ float two_samples_t_test_equal_sd(
    //
    students_t dist(v);
    double q = cdf(complement(dist, fabs(t_stat)));
-   return q; //2*q;
+   return 2*q;
 }
 
 float two_samples_t_test_unequal_sd(
@@ -126,7 +126,7 @@ float two_samples_t_test_unequal_sd(
    //
    students_t dist(v);
    double q = cdf(complement(dist, fabs(t_stat)));
-   return q; //2*q
+   return 2*q;
 }
 
 float tstudtest(float* arr1, float* arr2, int n, int m)
@@ -153,7 +153,7 @@ float tstudtest(float* arr1, float* arr2, int n, int m)
     if(sd1 == sd2)
         qval = two_samples_t_test_equal_sd(mean1, sd1, n, mean2, sd2, m, 0.05);
     else qval = two_samples_t_test_unequal_sd(mean1, sd1, n, mean2, sd2, m, 0.05);
-    std::cout << n << "\t" << m << "\t" <<  sd1 << "\t" << sd2 << "\t" << qval << "\n";
+    //std::cout << n << "\t" << m << "\t" <<  sd1 << "\t" << sd2 << "\t" << qval << "\n";
    //std::cout << qval;
    //two_samples_t_test_equal_sd(20.14458, 6.414700, 249, 30.48101, 6.107710, 79, 0.05);
    //two_samples_t_test_unequal_sd(20.14458, 6.414700, 249, 30.48101, 6.107710, 79, 0.05);

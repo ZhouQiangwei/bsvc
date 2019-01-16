@@ -215,11 +215,11 @@ int main()
    // from the NIST website http://www.itl.nist.gov.  The data compares
    // miles per gallon of US cars with miles per gallon of Japanese cars.
    //
-    float arr1[] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    float arr1[] = { 1, 1 }; //, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     // Calculate size of first array.
     int n = sizeof(arr1) / sizeof(arr1[0]);
-    float arr2[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    float arr2[] = { 0, 0 };//, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     // Calculate size of second array.
     int m = sizeof(arr2) / sizeof(arr2[0]);

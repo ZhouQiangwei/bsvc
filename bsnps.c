@@ -24,7 +24,7 @@
 int multiout=0;
 unsigned int longestchr = 10000;
 int minquali =20;
-int mincover=10;
+int mincover=3; //10;
 int minread2=2;
 int maxcover=1000;
 float minhetfreq=0.1;
@@ -39,9 +39,10 @@ char bamFileName[1024];
 char** chrName;
 int othercover=80;
 float minvarrate=0.3;
-int minvarread=5;
-int methmincover=5;
+int minvarread=2;
+int methmincover=4;
 int printLowQ=0;
+float tvalcutoff=0.01;
 
 struct Threading
 {
@@ -77,10 +78,10 @@ int main(int argc, char* argv[])
         "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
         //"\t-mchg                 DNA methylation CHG file.\n"
         //"\t-mchh                 DNA methylation CHH file.\n"
-        "\t-h|--help             BSNPS usage.\n"
-        "\t------------          If variant position filter quality is Low, we also can set `AD>minvarread, ALFR>minvarrate, pvalue<pvalue_cutoff+0.01` as PASS.\n"
-        "\t--minvarread          default: 5\n"
-        "\t--minvarrate          default: 0.3";
+        "\t-h|--help             BSNPS usage.\n";
+        //"\t------------          If variant position filter quality is Low, we also can set `AD>minvarread, ALFR>minvarrate, pvalue<pvalue_cutoff+0.01` as PASS.\n"
+        //"\t--minvarread          default: 5\n"
+        //"\t--minvarrate          default: 0.3";
         
 
     char refSeqFile[1024];
@@ -121,7 +122,11 @@ int main(int argc, char* argv[])
             mapqThr=atoi(argv[++i]);
         }else if(!strcmp(argv[i], "--methmincover") )
         {
-            methmincover=atoi(argv[++i]);
+            methmincover=atoi(argv[++i])-1;
+            if(methmincover<0) {
+                fprintf(stderr, "\nmethmincover must >0\n");
+                exit(0);
+            }
         }else if(!strcmp(argv[i], "--minread2") )
         {
             minread2=atoi(argv[++i]);
@@ -187,6 +192,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, "SNP File: %s\n", snpFileName);
     if(meth){
         fprintf(stderr, "Meth File: %s\n", methFileName);
+        fprintf(stderr, "Meth coverage: %d\n", methmincover);
         //fprintf(stderr, "MethChg File: %s\n", methChgFileName);
         //fprintf(stderr, "MethChh File: %s\n", methChhFileName);
         //args.methFileName = methFileName;
@@ -201,7 +207,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Minimum mapping quality score: %d\n", mapqThr);
     fprintf(stderr, "Pvalue threshold for calling variants: %f\n", pvalue_cutoff);
     fprintf(stderr, "Errorate per read: %f\n", errorrate);
-    fprintf(stderr, "minvarread: %d; minvarate: %f\n", minvarread, minvarrate);
+    fprintf(stderr, "minvarread: %d;\n", minvarread);
     
     //////////////////////////////////////////////////////////////////////////////
     // Load reference sequence & Init arrays
