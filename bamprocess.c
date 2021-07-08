@@ -282,7 +282,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[3]='\0';
                         }
                         float methratio=(float)w_C[i]/ct;
-                        if(c_C[i]>0) methratio = (float) w_C[i]/(ct*c_C[i]/(c_C[i]+c_T[i]));
+                        if(c_C[i]>0) methratio = (float) w_C[i]/((float)ct*c_C[i]/(c_C[i]+c_T[i]));
                         else if(c_T[i] > 0 && c_C[i]==0) methratio=1;
                         if(methratio>1) methratio=1;
                         fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, methratio, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
@@ -306,7 +306,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[3]='\0';
                         }
                         float methratio=(float)c_G[i]/ga;///////
-                        if(w_G[i]>0) methratio = (float) c_G[i]/(ga*w_G[i]/(w_G[i]+w_A[i]));
+                        if(w_G[i]>0) methratio = (float) c_G[i]/((float)ga*w_G[i]/(w_G[i]+w_A[i]));
                         else if(w_G[i]==0 && w_A[i]>0) methratio=1;
                         if(methratio>1) methratio=1;
                         fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, methratio, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());

@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
         "\t--pvalue              Default p-value threshold for calling variants, default: 0.05\n"
         "\t--minhetfreq          Minimum hetero frequency threshold, default: 0.1\n"
         "\t--minhomfreq          Minimum homo frequency threshold, default: 0.85\n"
+        "\t--tvalue              Default pvalue threshold for T test in calling variants, default: 0.01\n"
         "\t--printLowQ           Print Low Quality SNP, default: 0. [0 or 1]\n"
         //"\t-m                  Report DNA methylation calling positions. default: No report\n"
         "\t-mc [filename]        Report DNA methylation calling positions, and DNA methylation file.\n"
@@ -114,6 +115,9 @@ int main(int argc, char* argv[])
         else if(!strcmp(argv[i], "--minquali") )
         {
             minquali=atoi(argv[++i]);
+        }else if(!strcmp(argv[i], "--tvalue") )
+        {
+            tvalcutoff=atof(argv[++i]);
         }else if(!strcmp(argv[i], "--printLowQ") )
         {
             printLowQ=atoi(argv[++i]);
@@ -208,6 +212,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Pvalue threshold for calling variants: %f\n", pvalue_cutoff);
     fprintf(stderr, "Errorate per read: %f\n", errorrate);
     fprintf(stderr, "minvarread: %d;\n", minvarread);
+    fprintf(stderr, "T test pvalue threshold for calling variants: %f\n", tvalcutoff);
     
     //////////////////////////////////////////////////////////////////////////////
     // Load reference sequence & Init arrays
