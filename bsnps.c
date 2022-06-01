@@ -241,9 +241,10 @@ int main(int argc, char* argv[])
     // Init chrome seq array
     args.chrSeqArray = (char**)malloc(sizeof(char*) * args.chrCnt);
     for(i = 0; i < args.chrCnt; i++)
-        args.chrSeqArray[i] = (char*)malloc(sizeof(char) * args.chrLen[i] + 100);
+        args.chrSeqArray[i] = (char*)malloc(sizeof(char) * (args.chrLen[i] + 10000)); //10000 for chr name
     init_chrome_seq(args.hashTable, refSeqFile, args.chrSeqArray, args.chrLen);
-        for(i = 0; i < args.chrCnt; i++) {
+    
+    for(i = 0; i < args.chrCnt; i++) {
         if(!(args.chrSeqArray[i] = (char*)realloc((void*)(args.chrSeqArray[i]), sizeof(char) * args.chrLen[i]))) {
             fprintf(stderr, "Not enough memory for chrSeqArray\n");
             exit(1);
@@ -254,7 +255,8 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Build chrome seq array completed\n");
 
     int* chrDone = (int*)malloc(sizeof(int) * args.chrCnt);
-    chrDone[i] = 0;
+    for(i = 0; i < args.chrCnt; i++)
+        chrDone[i] = 0;
     // }}
 
     //Meth File

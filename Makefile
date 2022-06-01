@@ -5,7 +5,7 @@ HTSLIB=submodules/htslib
 SAMTOOLS=submodules/samtools
 LIBS = -m64 -I./$(SAMTOOLS) -I$(HTSLIB) -L$(SAMTOOLS) -L$(HTSLIB) -lbam -lz -lpthread -lm -lgsl -lgslcblas -lhts
 
-TARGET = bsnpc
+TARGET = bsvc
 TOCOMPILE = bsnps.o bamprocess.o hashtable.o readgenome.o fisher.o bayes.o getchrLen.o genotype.o tstudenttest.o
 
 all: ${TOCOMPILE}
