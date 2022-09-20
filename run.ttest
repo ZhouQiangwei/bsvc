@@ -1,0 +1,5 @@
+g++ -c tstudenttest.cpp -o tstudenttest.o
+g++ -c ttest_run.cpp -o ttest_run.o
+g++ ttest_run.o tstudenttest.o -o ttest
+./ttest
+

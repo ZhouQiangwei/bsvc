@@ -31,7 +31,6 @@ float minhetfreq=0.1;
 float errorrate=0.02; //0.1
 unsigned int mapqThr=20;
 int meth=0;
-int bufferprocess = 1000000;
 int snp=1;
 float minhomfreq =0.85;
 float pvalue_cutoff =0.05;
@@ -52,7 +51,6 @@ struct Threading
     void *ret;
     ARGS Arg;
 };
-void onlyexecuteCMD(char *cmd);
 
 int main(int argc, char* argv[])
 {
@@ -78,7 +76,7 @@ int main(int argc, char* argv[])
         //"\t-m                  Report DNA methylation calling positions. default: No report\n"
         "\t-mc [filename]        Report DNA methylation calling positions, and DNA methylation file.\n"
         "\t--methmincover        DNA methylation minimum read depth at a position to make a call, default: 5\n"
-//        "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
+        "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
         //"\t-mchg                 DNA methylation CHG file.\n"
         //"\t-mchh                 DNA methylation CHH file.\n"
         "\t-h|--help             BSNPS usage.\n";
@@ -176,7 +174,6 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s\n", Help_String);
         exit(0);
     }
-    if(NTHREAD<=0) NTHREAD = 1;
     char* chrLenFile=(char*) malloc(sizeof(char)*1024);
     sprintf(chrLenFile, "%s.len", refSeqFile);
     
@@ -262,56 +259,18 @@ int main(int argc, char* argv[])
         chrDone[i] = 0;
     // }}
 
-    char tempoutfile[1000];
     //Meth File
     if(multiout) args.methFileName = methFileName;
-    args.methFptr = (FILE**)malloc(NTHREAD*sizeof(FILE*));
     if(meth == 1){
-        for (int i=0;i<NTHREAD;i++) {
-            sprintf(tempoutfile, "%s.tmp%d", methFileName, i);
-            args.methFptr[i] = fopen(tempoutfile, "w");
-        }
-        sprintf(tempoutfile, "%s.header", methFileName);
-        FILE *methheader = fopen(tempoutfile, "w");
-        fprintf(methheader, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
-        fclose(methheader);
+        args.methFptr = fopen(methFileName, "w");
+        fprintf(args.methFptr, "chrom\tpos\tstrand\tcontext\tmethcover\t(meth+unmeth)cover\tmethylevel\tmethqual,unmethqual\twaston_cover,crick_cover\trefbase,genotype\n");
     }
     //////////////////////////////////////////////////////////////////////////////
     // SNP process
     //////////////////////////////////////////////////////////////////////////////
     fprintf(stderr, "SNP process ...\n");
     if(multiout) args.snpFileName = snpFileName;
-    args.snpFptr = (FILE**)malloc(NTHREAD*sizeof(FILE*));
-    for (int i=0;i<NTHREAD;i++) {
-        sprintf(tempoutfile, "%s.tmp%d", snpFileName, i);
-        args.snpFptr[i] = fopen(tempoutfile, "w");
-    }
-
-    //calloc mem
-    args.w_A = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_T = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_C = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_G = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_A = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_T = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_C = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_G = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-
-    args.w_Aq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_Tq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_Cq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.w_Gq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_Aq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_Tq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_Cq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_Gq = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-
-    args.w_Q = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-    args.c_Q = (unsigned short**)malloc(NTHREAD*sizeof(unsigned short*));
-
-    for (int i=0;i<NTHREAD;i++) {
-        creat_mem_snp(args.w_A[i], args.w_T[i], args.w_C[i], args.w_G[i], args.c_A[i], args.c_T[i], args.c_C[i], args.c_G[i], args.w_Aq[i], args.w_Tq[i], args.w_Cq[i], args.w_Gq[i], args.c_Aq[i], args.c_Tq[i], args.c_Cq[i], args.c_Gq[i], args.w_Q[i], args.c_Q[i], bufferprocess);
-    }
+    args.snpFptr = fopen(snpFileName, "w");
     
     //////////////////////////////////////////////////////////////////////////////
     // vcf header
@@ -345,34 +304,28 @@ int main(int argc, char* argv[])
     //##INFO=<ID=IMF,Number=1,Type=Float,Description=\"Maximum fraction of reads supporting an indel\">
     //////////////////////////////////////////////////////////////////////////////
 
-    //fprintf(args.snpFptr, "%s\n", vcfheader);
-    sprintf(tempoutfile, "%s.header", snpFileName);
-    FILE* vcfheaerF = fopen(tempoutfile, "w");
-    fprintf(vcfheaerF, "%s\n", vcfheader);
-    fclose(vcfheaerF);
+    fprintf(args.snpFptr, "%s\n", vcfheader);
 
     if (NTHREAD)
     {
-        for(int ithreadschr=0; ithreadschr < args.chrCnt; ithreadschr++){
-            Threading* Thread_Info=(Threading*) malloc(sizeof(Threading)*NTHREAD);
-            pthread_attr_t Attrib;
-            pthread_attr_init(&Attrib);
-            pthread_attr_setdetachstate(&Attrib, PTHREAD_CREATE_JOINABLE);
-            for (int i=0;i<NTHREAD;i++)
-            {
-                args.ThreadID=i;
-                args.ithreadschr=ithreadschr;
-                Thread_Info[i].Arg=args;
-                Thread_Info[i].r=pthread_create(&Thread_Info[i].Thread,&Attrib,npsnpAnalysis,(void*) &Thread_Info[i].Arg);
-                if(Thread_Info[i].r) {printf("Launch_Threads():Cannot create thread..\n");exit(-1);}
-            }
-            pthread_attr_destroy(&Attrib);
-            for (int i=0;i<NTHREAD;i++)
-            {
-                pthread_join(Thread_Info[i].Thread,NULL);
-            }
-            free(Thread_Info);
+        Threading* Thread_Info=(Threading*) malloc(sizeof(Threading)*NTHREAD);
+        pthread_attr_t Attrib;
+        pthread_attr_init(&Attrib);
+        pthread_attr_setdetachstate(&Attrib, PTHREAD_CREATE_JOINABLE);
+
+        for (int i=0;i<NTHREAD;i++)
+        {
+            args.ThreadID=i;
+            Thread_Info[i].Arg=args;
+            Thread_Info[i].r=pthread_create(&Thread_Info[i].Thread,&Attrib,npsnpAnalysis,(void*) &Thread_Info[i].Arg);
+            if(Thread_Info[i].r) {printf("Launch_Threads():Cannot create thread..\n");exit(-1);}
         }
+        pthread_attr_destroy(&Attrib);
+        for (int i=0;i<NTHREAD;i++)
+        {
+            pthread_join(Thread_Info[i].Thread,NULL);
+        }
+        free(Thread_Info);
     }else{
         args.ThreadID=0;
         npsnpAnalysis(&args);
@@ -388,61 +341,8 @@ int main(int argc, char* argv[])
         }
     }
     */
-    char tempmerge[2000];
-    sprintf(tempmerge, "cat");
-    for (int i=0;i<NTHREAD;i++) {
-        sprintf(tempoutfile, " %s.tmp%d", snpFileName, i);
-        strcat(tempmerge, tempoutfile);
-    }
-    sprintf(tempoutfile, " > %s.merge", snpFileName);
-    strcat(tempmerge, tempoutfile);
-    onlyexecuteCMD(tempmerge);
-
-    sprintf(tempoutfile, "sort -k1,1V -k2,2n %s.merge > %s.merge.sort", snpFileName, snpFileName);
-    onlyexecuteCMD(tempoutfile);
-
-    sprintf(tempmerge, "cat %s.header %s.merge.sort > %s", snpFileName, snpFileName, snpFileName);
-    onlyexecuteCMD(tempmerge);
-
-    sprintf(tempmerge, "rm");
-    for (int i=0;i<NTHREAD;i++) {
-        sprintf(tempoutfile, " %s.tmp%d", snpFileName, i);
-        strcat(tempmerge, tempoutfile);
-    }
-    onlyexecuteCMD(tempmerge);
-
-    sprintf(tempoutfile, "rm %s.header %s.merge %s.merge.sort", snpFileName, snpFileName, snpFileName);
-    onlyexecuteCMD(tempoutfile);
-
-    for (int i=0;i<NTHREAD;i++) fclose(args.snpFptr[i]);
-    if(meth==1) for (int i=0;i<NTHREAD;i++) fclose(args.methFptr[i]);
-    free(args.methFptr); free(args.snpFptr);
-
-    for (int i=0;i<NTHREAD;i++) {
-        // Memory gathering for x_X
-        free(args.w_A[i]);
-        free(args.w_T[i]);
-        free(args.w_C[i]);
-        free(args.w_G[i]);
-        free(args.c_A[i]);
-        free(args.c_T[i]);
-        free(args.c_C[i]);
-        free(args.c_G[i]);
-        // Memory gathering for x_Xq
-        free(args.w_Aq[i]);
-        free(args.w_Tq[i]);
-        free(args.w_Cq[i]);
-        free(args.w_Gq[i]);
-        free(args.c_Aq[i]);
-        free(args.c_Tq[i]);
-        free(args.c_Cq[i]);
-        free(args.c_Gq[i]);
-
-        // Memory gathering for x_Q
-        free(args.w_Q[i]);
-        free(args.c_Q[i]);
-    }
-    free(args.w_A); free(args.w_T); free(args.w_C); free(args.w_G); free(args.c_A); free(args.c_T); free(args.c_C); free(args.c_G); free(args.w_Aq); free(args.w_Tq); free(args.w_Cq); free(args.w_Gq); free(args.c_Aq); free(args.c_Tq); free(args.c_Cq); free(args.c_Gq); free(args.w_Q); free(args.c_Q);
+    fclose(args.snpFptr);
+    if(meth==1) fclose(args.methFptr);
 
     fprintf(stderr, "SNP process done!\n");
 
@@ -450,19 +350,3 @@ int main(int argc, char* argv[])
 }
 
 
-void onlyexecuteCMD(char *cmd)
-{
-    char ps[1024]={0};
-    FILE *ptr;
-    strcpy(ps, cmd);
-    fprintf(stderr, "[bsvc] %s\n", cmd);
-    ptr=popen(ps, "w");
-
-    if(ptr==NULL)
-    {
-        fprintf(stderr, "\nruncmd error %s\n", cmd);
-        exit(0);
-    }
-    pclose(ptr);
-    ptr = NULL;
-}

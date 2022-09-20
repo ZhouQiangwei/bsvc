@@ -70,10 +70,12 @@ float two_samples_t_test_equal_sd(
    // Pooled variance:
    double sp = sqrt(((Sn1-1) * Sd1 * Sd1 + (Sn2-1) * Sd2 * Sd2) / v);
    // t-statistic:
-   double t_stat = (Sm1 - Sm2) / (sp * sqrt(1.0 / Sn1 + 1.0 / Sn2));
+   double t_stat;
+   if(Sm1 == Sm2) t_stat = 0;
+   else if(sp ==0) t_stat = 0;
+   else t_stat  = (Sm1 - Sm2) / (sp * sqrt(1.0 / Sn1 + 1.0 / Sn2));
    //
    // Define our distribution, and get the probability:
-   //
    students_t dist(v);
    double q = cdf(complement(dist, fabs(t_stat)));
    return 2*q;
@@ -120,7 +122,10 @@ float two_samples_t_test_unequal_sd(
    t2 /= (Sn2 - 1);
    v /= (t1 + t2);
    // t-statistic:
-   double t_stat = (Sm1 - Sm2) / sqrt(Sd1 * Sd1 / Sn1 + Sd2 * Sd2 / Sn2);
+   double t_stat;
+   if(Sm1 == Sm2) t_stat = 0;
+   else if(Sd1==0 && Sd2==0) t_stat = 0;
+   else t_stat  = (Sm1 - Sm2) / sqrt(Sd1 * Sd1 / Sn1 + Sd2 * Sd2 / Sn2);
    //
    // Define our distribution, and get the probability:
    //

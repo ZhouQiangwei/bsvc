@@ -29,8 +29,8 @@
 struct ARGS{
     //char* bamFileName;
     //char* snpFileName;
-    FILE* snpFptr;
-    FILE* methFptr;
+    FILE** snpFptr;
+    FILE** methFptr;
     char* methFileName;
     char* snpFileName; 
     HashNode** hashTable;
@@ -38,6 +38,28 @@ struct ARGS{
     int* chrLen;
     int chrCnt;
     int ThreadID;
+    int ithreadschr;
+    
+    unsigned short **w_A;
+    unsigned short **w_T;
+    unsigned short **w_C;
+    unsigned short **w_G;
+    unsigned short **c_A;
+    unsigned short **c_T;
+    unsigned short **c_C;
+    unsigned short **c_G;
+
+    unsigned short **w_Aq;
+    unsigned short **w_Tq;
+    unsigned short **w_Cq;
+    unsigned short **w_Gq;
+    unsigned short **c_Aq;
+    unsigned short **c_Tq;
+    unsigned short **c_Cq;
+    unsigned short **c_Gq;
+
+    unsigned short **w_Q;
+    unsigned short **c_Q;
 //    int processChrom;
     //FILE* samINFILE;
     //bamFile in;
@@ -68,15 +90,23 @@ struct MapRecord_Struct
 
 void *npsnpAnalysis(void *arg);
 void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName, char* methChhFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMin, unsigned int mapqThr);
-void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr, char* processChrom);
-void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
-void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom);
+void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr, char* processChrom, int istart, int iend, unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&w_C ,unsigned short *&w_G ,unsigned short *&c_A ,
+    unsigned short *&c_T ,unsigned short *&c_C ,unsigned short *&c_G, unsigned short *&w_Aq ,unsigned short *&w_Tq ,unsigned short *&w_Cq ,
+    unsigned short *&w_Gq , unsigned short *&c_Aq ,unsigned short *&c_Tq ,unsigned short *&c_Cq ,unsigned short *&c_Gq, unsigned short *&w_Q,
+    unsigned short *&c_Q);
+void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
+void bamProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom);
 
 int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr);
 char nxtChar(char* cigar, int* len);
 void dispRecord(MapRecord* record);
 int seqReverse(char* seq, int seqLen);
 void printMeth(FILE* methFptr, int len, char* curChr, unsigned int* w_Mm, unsigned int* w_Mc, unsigned int* w_Mq, unsigned int* c_Mm, unsigned int* c_Mc, unsigned int* c_Mq, char* tag, int nLayerMin);
-void printSnp(FILE* posFptr, char** chrSeqArray, int idx, int len, float vSnpRate, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned int *w_Aq, unsigned int *w_Tq, unsigned int *w_Cq, unsigned int *w_Gq, unsigned int *c_Aq, unsigned int *c_Tq, unsigned int *c_Cq, unsigned int *c_Gq, unsigned short *w_An, unsigned short *w_Tn, unsigned short *w_Cn, unsigned short *w_Gn, unsigned short *c_An, unsigned short *c_Tn, unsigned short *c_Cn, unsigned short *c_Gn, unsigned int *w_Q, unsigned int *c_Q);
+void printArray(FILE* posFptr, char** chrSeqArray, int idx, int len, float vSnpRate, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned int *w_Aq, unsigned int *w_Tq, unsigned int *w_Cq, unsigned int *w_Gq, unsigned int *c_Aq, unsigned int *c_Tq, unsigned int *c_Cq, unsigned int *c_Gq, unsigned short *w_An, unsigned short *w_Tn, unsigned short *w_Cn, unsigned short *w_Gn, unsigned short *c_An, unsigned short *c_Tn, unsigned short *c_Cn, unsigned short *c_Gn, unsigned int *w_Q, unsigned int *c_Q, int istart);
+
+void creat_mem_snp(unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&w_C ,unsigned short *&w_G ,unsigned short *&c_A ,
+    unsigned short *&c_T ,unsigned short *&c_C ,unsigned short *&c_G, unsigned short *&w_Aq ,unsigned short *&w_Tq ,unsigned short *&w_Cq ,
+    unsigned short *&w_Gq , unsigned short *&c_Aq ,unsigned short *&c_Tq ,unsigned short *&c_Cq ,unsigned short *&c_Gq, unsigned short *&w_Q,
+    unsigned short *&c_Q, unsigned int lenchr);
 
 #endif

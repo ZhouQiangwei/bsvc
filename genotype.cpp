@@ -42,7 +42,6 @@ int printSNP(FILE* posFptr, char* chrom, int pos, char refbase, char* altbase, i
 //gt 1,2,3 0/1 1/2 1/1
     float ptstuval1=1;
     float ptstuval2=1;
-    //printf("\n%d %d %d %d %d\n", pos, var1, var2, efcoverage1, efcoverage2);
     if(var1>=minread2) ptstuval1 = ttest(efcoverage1, var1);
     if(var2>=minread2) ptstuval2 = ttest(efcoverage2, var2);
     float ptstuval = ttest(totaldepth, ad);

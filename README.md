@@ -1,6 +1,6 @@
 
 
-# Bisulfite-seq Single Nucleotide Polymorphism Scan/Calling (BSsnpcaller/BSNPS)
+# Bisulfite-seq Variation Calling (BSVC)
 
 
 

@@ -25,8 +25,9 @@ extern char** chrName;
 extern int minvarread;
 extern int methmincover;
 extern int multiout;
+extern int bufferprocess;
 
-int ithreadschr = 0;
+int jthreadschr = 0, istart=0, iend=0;
 pthread_mutex_t meth_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -35,6 +36,9 @@ void *npsnpAnalysis(void *arg){
     //if(meth)
     //    methProcess(bamFileName, args->methCgFileName, args->methChgFileName, args->methChhFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, mincover, mapqThr);
 
+    pthread_mutex_lock(&meth_counter_mutex);
+    if(iend!=0) {istart = 0-bufferprocess; iend = 0;}
+    pthread_mutex_unlock(&meth_counter_mutex);
     //Process SNP
     if(snp){
         // SNP outfile
@@ -44,28 +48,23 @@ void *npsnpAnalysis(void *arg){
         }
         char tempoutfile[1000];
         if(NTHREAD>1){
-            int processchrom=0;
-            for(; ithreadschr < args->chrCnt;){
+            int processchrom=args->ithreadschr;
+            // SNP outfile
+            pthread_mutex_lock(&meth_counter_mutex);
+            istart += bufferprocess; iend += bufferprocess; jthreadschr = 0;
+            pthread_mutex_unlock(&meth_counter_mutex);
+            for(; iend<=args->chrLen[processchrom] && istart<args->chrLen[processchrom]; ) {
+                bamProcess(args->methFptr[args->ThreadID], args->snpFptr[args->ThreadID], bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom], istart, iend, args->w_A[args->ThreadID], args->w_T[args->ThreadID], args->w_C[args->ThreadID], args->w_G[args->ThreadID], args->c_A[args->ThreadID], args->c_T[args->ThreadID], args->c_C[args->ThreadID], args->c_G[args->ThreadID], args->w_Aq[args->ThreadID], args->w_Tq[args->ThreadID], args->w_Cq[args->ThreadID], args->w_Gq[args->ThreadID], args->c_Aq[args->ThreadID], args->c_Tq[args->ThreadID], args->c_Cq[args->ThreadID], args->c_Gq[args->ThreadID], args->w_Q[args->ThreadID], args->c_Q[args->ThreadID]);
                 pthread_mutex_lock(&meth_counter_mutex);
-                processchrom=ithreadschr;
-                ithreadschr++;
+                if(istart==0) istart = 1;
+                istart += bufferprocess;
+                iend += bufferprocess;
+                if(iend>args->chrLen[processchrom]) iend = args->chrLen[processchrom];
                 pthread_mutex_unlock(&meth_counter_mutex);
-                // SNP outfile
-                if(multiout){
-                    sprintf(tempoutfile, "%s.%s.vcf", args->snpFileName, chrName[processchrom]);
-                    FILE* snptempfp = fopen(tempoutfile, "w");
-                    sprintf(tempoutfile, "%s.%s.vcf", args->methFileName, chrName[processchrom]);
-                    FILE* methtempfp;
-		    if(meth==1) methtempfp = fopen(tempoutfile, "w");
-                    snpProcess_multiop(methtempfp, snptempfp, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
-                    fclose(snptempfp);
-                    fclose(methtempfp);
-                }else
-                    snpProcess(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom]);
             }
         }
         else{
-            snpProcess_singlet(args->methFptr, args->snpFptr, bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr);
+            bamProcess_singlet(args->methFptr[0], args->snpFptr[0], bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr);
         }
         
     }
@@ -111,8 +110,8 @@ void printMeth(FILE* methFptr, int len, char* curChr, unsigned int* w_Mm_CG, uns
     }
 }
 
-void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int len, float minhetfreq, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned short *w_Aq, unsigned short *w_Tq, unsigned short *w_Cq, unsigned short *w_Gq, unsigned short *c_Aq, unsigned short *c_Tq, unsigned short *c_Cq, unsigned short *c_Gq, 
-    unsigned short *w_Q, unsigned short *c_Q)
+void printArray(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int len, float minhetfreq, char* curChr, unsigned short *w_A, unsigned short *w_T, unsigned short *w_C, unsigned short *w_G, unsigned short *c_A, unsigned short *c_T, unsigned short *c_C, unsigned short *c_G, unsigned short *w_Aq, unsigned short *w_Tq, unsigned short *w_Cq, unsigned short *w_Gq, unsigned short *c_Aq, unsigned short *c_Tq, unsigned short *c_Cq, unsigned short *c_Gq, 
+    unsigned short *w_Q, unsigned short *c_Q, int istart)
 {
     int i, j, m,ccover,wcover;
     int v, n, v2, n2;
@@ -122,6 +121,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
     char context[5];
     float mratio=0;
     int ct,ga;
+    int chrcoord = 0;
     // Record snp sites
     for(i = 0; i < len; i++)
     {
@@ -131,7 +131,8 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
         wcover=w_A[i]+w_T[i]+w_C[i]+w_G[i];
         if(m<1) continue;
         // No snp pt number
-        switch(chrSeqArray[idx][i])
+        chrcoord = istart + i;
+        switch(chrSeqArray[idx][chrcoord]) //i
         {
         case 'A':
             // A>C=(C+WsT)/total reads
@@ -196,7 +197,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
         }
         int filterpass=0;
         // Filtering
-        char refbase=chrSeqArray[idx][i];
+        char refbase=chrSeqArray[idx][chrcoord];
         unsigned int wsqA= (unsigned int)((float)w_Aq[i]/w_A[i]+0.5);
         unsigned int wsqT= (unsigned int)((float)w_Tq[i]/w_T[i]+0.5);
         unsigned int wsqC= (unsigned int)((float)w_Cq[i]/w_C[i]+0.5);
@@ -210,8 +211,10 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
         {
             double qual=1;
             Bayes(wsqA,wsqT,wsqC, wsqG, crqA, crqT, crqC, crqG, refbase, i+1, curChr, w_A[i], w_T[i], w_C[i], w_G[i], c_A[i], c_T[i], c_C[i], c_G[i], genotypemaybe, qual);
-            filterpass = genotype(posFptr, wsqA, wsqT, wsqC,  wsqG,  crqA,  crqT,  crqC,  crqG,  refbase, i+1, curChr,
+            //pthread_mutex_lock(&output_mutex);
+            filterpass = genotype(posFptr, wsqA, wsqT, wsqC,  wsqG,  crqA,  crqT,  crqC,  crqG,  refbase, chrcoord+1, curChr,
      w_A[i],  w_T[i],  w_C[i],  w_G[i],  c_A[i], c_T[i], c_C[i], c_G[i], genotypemaybe, qual);
+            //pthread_mutex_unlock(&output_mutex);
         }
 
         //Meth
@@ -223,11 +226,11 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                 if(refbase=='C'){
                     ct=w_C[i]+w_T[i];
                     if(ct>methmincover){
-                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                        if(i+1 < len && chrSeqArray[idx][chrcoord+1]=='G'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                        }else if(i+2 < len && chrSeqArray[idx][chrcoord+2]=='G'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -238,17 +241,17 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/(ct), wsqC,wsqT,wcover, ccover, refbase);
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, chrcoord+1, context, w_C[i], ct, (float)w_C[i]/(ct), wsqC,wsqT,wcover, ccover, refbase);
                     }
                 }
                 else if(refbase=='G'){
                     ga=c_G[i]+c_A[i];
                     if(ga>methmincover){
-                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                        if(i > 0 && chrSeqArray[idx][chrcoord-1]=='C'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                        }else if(i > 1 && chrSeqArray[idx][chrcoord-2]=='C'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -259,18 +262,18 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase);
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c\n",curChr, chrcoord+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase);
                     }
                 }
             }else if(filterpass==1) {// && genotypemaybe!="CT" && genotypemaybe!="AG"){
                 if(genotypemaybe=="CT"){
                     ct=w_C[i]+w_T[i];
                     if(ct>methmincover){
-                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                        if(i+1 < len && chrSeqArray[idx][chrcoord+1]=='G'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                        }else if(i+2 < len && chrSeqArray[idx][chrcoord+2]=='G'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -285,16 +288,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                         if(c_C[i]>0) methratio = (float) w_C[i]/((float)ct*c_C[i]/(c_C[i]+c_T[i]));
                         else if(c_T[i] > 0 && c_C[i]==0) methratio=1;
                         if(methratio>1) methratio=1;
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, methratio, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, w_C[i], ct, methratio, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(genotypemaybe=="AG"){
                     ga=c_G[i]+c_A[i];
                     if(ga>methmincover){
-                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                        if(i > 0 && chrSeqArray[idx][chrcoord-1]=='C'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                        }else if(i > 1 && chrSeqArray[idx][chrcoord-2]=='C'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -309,16 +312,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                         if(w_G[i]>0) methratio = (float) c_G[i]/((float)ga*w_G[i]/(w_G[i]+w_A[i]));
                         else if(w_G[i]==0 && w_A[i]>0) methratio=1;
                         if(methratio>1) methratio=1;
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, methratio, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, c_G[i], ga, methratio, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(genotypemaybe=="CG"){
                     ct=w_C[i]+w_T[i];
                     if(ct>methmincover){
-                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                        if(i+1 < len && chrSeqArray[idx][chrcoord+1]=='G'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                        }else if(i+2 < len && chrSeqArray[idx][chrcoord+2]=='G'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -329,15 +332,15 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                     ga=c_G[i]+c_A[i];
                     if(ga>methmincover){
-                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                        if(i > 0 && chrSeqArray[idx][chrcoord-1]=='C'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                        }else if(i > 1 && chrSeqArray[idx][chrcoord-2]=='C'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -348,16 +351,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(genotypemaybe[0]=='C' || genotypemaybe[1] == 'C'){
                     ct=w_C[i]+w_T[i];
                     if(ct>methmincover){
-                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                        if(i+1 < len && chrSeqArray[idx][chrcoord+1]=='G'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                        }else if(i+2 < len && chrSeqArray[idx][chrcoord+2]=='G'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -368,16 +371,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, w_C[i], ct, (float)w_C[i]/ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(genotypemaybe[0]=='G' || genotypemaybe[1] == 'G'){
                     ga=c_G[i]+c_A[i];
                     if(ga>methmincover){
-                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                        if(i > 0 && chrSeqArray[idx][chrcoord-1]=='C'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                        }else if(i > 1 && chrSeqArray[idx][chrcoord-2]=='C'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -388,16 +391,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\t%f\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, c_G[i], ga, (float)c_G[i]/ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(refbase=='C'){ //not C
                     ct=w_C[i]+w_T[i];
                     if(ct>methmincover){
-                        if(i+1 < len && chrSeqArray[idx][i+1]=='G'){
+                        if(i+1 < len && chrSeqArray[idx][chrcoord+1]=='G'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i+2 < len && chrSeqArray[idx][i+2]=='G'){
+                        }else if(i+2 < len && chrSeqArray[idx][chrcoord+2]=='G'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -408,16 +411,16 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\tNA\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, w_C[i], ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t+\t%s\t%d\t%d\tNA\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, w_C[i], ct, wsqC,wsqT,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }else if(refbase='G'){ //not meth
                     ga=c_G[i]+c_A[i];
                     if(ga>methmincover){
-                        if(i > 0 && chrSeqArray[idx][i-1]=='C'){
+                        if(i > 0 && chrSeqArray[idx][chrcoord-1]=='C'){
                             context[0]='C';
                             context[1]='G';
                             context[2]='\0';
-                        }else if(i > 1 && chrSeqArray[idx][i-2]=='C'){
+                        }else if(i > 1 && chrSeqArray[idx][chrcoord-2]=='C'){
                             context[0]='C';
                             context[1]='H';
                             context[2]='G';
@@ -428,7 +431,7 @@ void printSnp(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int le
                             context[2]='H';
                             context[3]='\0';
                         }
-                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\tNA\t%d,%d\t%d,%d\t%c,%s\n",curChr, i+1, context, c_G[i], ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
+                        fprintf(methFptr, "%s\t%d\t-\t%s\t%d\t%d\tNA\t%d,%d\t%d,%d\t%c,%s\n",curChr, chrcoord+1, context, c_G[i], ga, crqG,crqA,wcover, ccover,refbase,genotypemaybe.c_str());
                     }
                 }
 
@@ -1167,89 +1170,97 @@ void creat_mem_snp(unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&
     unsigned short *&c_Q, unsigned int lenchr){
     fprintf(stderr, "Memory alloction for SNP/meth, array len: %u\n", lenchr);
     // Memory alloction for x_X
-    if(!(w_A = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_A = (unsigned short*)malloc(lenchr*sizeof(unsigned short)))) {
         memerror(1);
         exit(1);
     }
-    if(!(w_T = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_T = (unsigned short*)malloc(lenchr*sizeof(unsigned short)))) {
         memerror(2);
         exit(1);
     }
-    if(!(w_C = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_C = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(3);
         exit(1);
     }
-    if(!(w_G = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_G = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(4);
         exit(1);
     }
-    if(!(c_A = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_A = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(5);
         exit(1);
     }
-    if(!(c_T = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_T = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(6);
         exit(1);
     }
-    if(!(c_C = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_C = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(7);
         exit(1);
     }
-    if(!(c_G = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_G = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(8);
         exit(1);
     }
 
     // Memory alloction for x_Xq
-    if(!(w_Aq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_Aq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(9);
         exit(1);
     }
-    if(!(w_Tq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_Tq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(10);
         exit(1);
     }
-    if(!(w_Cq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_Cq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(11);
         exit(1);
     }
-    if(!(w_Gq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_Gq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(12);
         exit(1);
     }
-    if(!(c_Aq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_Aq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(13);
         exit(1);
     }
-    if(!(c_Tq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_Tq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(14);
         exit(1);
     }
-    if(!(c_Cq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_Cq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(15);
         exit(1);
     }
-    if(!(c_Gq = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_Gq = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(16);
         exit(1);
     }
 
     // Memory alloction for x_Q
-    if(!(w_Q = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(w_Q = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(25);
         exit(1);
     }
-    if(!(c_Q = (unsigned short*)calloc(lenchr, sizeof(unsigned short)))) {
+    if(!(c_Q = (unsigned short*)malloc(lenchr* sizeof(unsigned short)))) {
         memerror(26);
         exit(1);
     }
+
+    init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, lenchr);
 }
 
-void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
-    int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom)
+void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
+    int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom, int istart, int iend, unsigned short *&w_A, unsigned short *&w_T ,unsigned short *&w_C ,unsigned short *&w_G ,unsigned short *&c_A ,
+    unsigned short *&c_T ,unsigned short *&c_C ,unsigned short *&c_G, unsigned short *&w_Aq ,unsigned short *&w_Tq ,unsigned short *&w_Cq ,
+    unsigned short *&w_Gq , unsigned short *&c_Aq ,unsigned short *&c_Tq ,unsigned short *&c_Cq ,unsigned short *&c_Gq, unsigned short *&w_Q,
+    unsigned short *&c_Q)
 {
-    int i, j, off, idx, len;
+    int i, j, off, idx, len, arrayoff, processlen;
     int m, n, cnt, iread;
+    char chrregion[1000];
+    sprintf(chrregion, "%s:%d-%d", processChrom, istart, iend);
+
     int* chrDone = (int*)calloc(chrCnt, sizeof(int));
 
     MapRecord* record = (MapRecord*)malloc(sizeof(MapRecord));
@@ -1263,26 +1274,26 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
     record->qualBuf = (char*)malloc(sizeof(char) * 1000);
     record->comBuf = (char*)malloc(sizeof(char) * 1000);
 
-    unsigned short *w_A = NULL;
-    unsigned short *w_T = NULL;
-    unsigned short *w_C = NULL;
-    unsigned short *w_G = NULL;
-    unsigned short *c_A = NULL;
-    unsigned short *c_T = NULL;
-    unsigned short *c_C = NULL;
-    unsigned short *c_G = NULL;
+    //unsigned short *w_A = NULL;
+    //unsigned short *w_T = NULL;
+    //unsigned short *w_C = NULL;
+    //unsigned short *w_G = NULL;
+    //unsigned short *c_A = NULL;
+    //unsigned short *c_T = NULL;
+    //unsigned short *c_C = NULL;
+    //unsigned short *c_G = NULL;
 
-    unsigned short *w_Aq = NULL;
-    unsigned short *w_Tq = NULL;
-    unsigned short *w_Cq = NULL;
-    unsigned short *w_Gq = NULL;
-    unsigned short *c_Aq = NULL;
-    unsigned short *c_Tq = NULL;
-    unsigned short *c_Cq = NULL;
-    unsigned short *c_Gq = NULL;
+    //unsigned short *w_Aq = NULL;
+    //unsigned short *w_Tq = NULL;
+    //unsigned short *w_Cq = NULL;
+    //unsigned short *w_Gq = NULL;
+    //unsigned short *c_Aq = NULL;
+    //unsigned short *c_Tq = NULL;
+    //unsigned short *c_Cq = NULL;
+    //unsigned short *c_Gq = NULL;
 
-    unsigned short *w_Q = NULL;
-    unsigned short *c_Q = NULL;
+    //unsigned short *w_Q = NULL;
+    //unsigned short *c_Q = NULL;
 
     idx = hash_table_lookup(hashTable, processChrom);
     if(idx == -1) {
@@ -1310,25 +1321,30 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
     }
     header = sam_hdr_read(infp);
 
-    hts_itr_t *iter = sam_itr_querys(bamidx, header, processChrom);
+    hts_itr_t *iter = sam_itr_querys(bamidx, header, chrregion); // get region //processChrom);
     if (iter == NULL) { // region invalid or reference name not found
         return;
     }
 
+    int ret = 0;
     bam1_t* b = bam_init1();
     if(b == NULL) {
         fprintf(stderr, "Cannot init bam structure!\n");
+        ret = 1;
         exit(1);
     }
 
     len = chrLen[idx];
-    fprintf(stderr, "Processing chromosome: %s\n", processChrom);
-    creat_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
+    processlen = bufferprocess;
+    fprintf(stderr, "Processing chromosome: %s %d %d\n", processChrom, istart, iend);
+    //creat_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, processlen);
+    init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, processlen);
     
     while( sam_itr_next(infp, iter, b) >= 0 ) {
         // Parse record
         if(parseBuffer(header, b, record, mapqThr) == 1)
             continue;
+
         // Check chrome
         if(strcmp(curChr, record->chrome) != 0) {
             // Save old chrome statics results
@@ -1340,9 +1356,9 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
                 exit(0);
                 finCnt = rowCnt;
                 // Print
-                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q);
+                printArray(methFptr, snpFptr, chrSeqArray, idx, processlen, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q, istart);
                 // Memory init
-                init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
+                init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, processlen);
             }
             
 
@@ -1430,135 +1446,146 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
         //printf("\n%d < %d %s %f %s %d\n", cnt, iread, record->qname, errorrate, record->qual, record->offset - 1);
         if(cnt <= iread) {
             off = record->offset - 1;
-            for(i = 0; i < record->len; i++) {
+            for(i = 0; i < record->len ; i++) {
+                arrayoff = off - istart;
+                if(arrayoff<0) {
+                    off++;
+                    continue;
+                    //fprintf(stderr, "Unexpected error in arrayoff %d", arrayoff);
+                    //exit(0);
+                }
+                if(arrayoff>=bufferprocess) break;
                 if(record->strand == '+') {
                     switch(record->seq[i]) {
-                        case 'A':
-                            if(0 && record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
-                                c_G[off]++;
-                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
-                            }
-                            else {
+                        case 'A': //A
+                            //if(0 && record->r12 ==2 && chrSeqArray[idx][off] == 'G') {
+                            //    c_G[off]++;
+                            //    c_Gq[off] += (unsigned short)(record->qual[i] - 33);
+                            //    c_Q[off] += record->mapq;
+                            //}
+                            //else 
+                            {
+//fprintf(stderr, "%d %d %d %d, %d %d %d\n", len, off, (unsigned short)(record->qual[i] - 33), record->mapq, w_A[off], w_Aq[off], w_Q[off]);
+//fprintf(stderr, "%d %d\n", len, off);
                                 if(record->r12 == 1) {
-                                    w_A[off]++;
-                                    w_Aq[off] += (unsigned short)(record->qual[i] - 33);
-                                    w_Q[off] += record->mapq;
+                                    w_A[arrayoff]++;
+                                    w_Aq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[arrayoff] += record->mapq;
                                 }
-                                else {
-                                    c_A[off]++;
-                                    c_Aq[off] += (unsigned short)(record->qual[i] - 33);
-                                    c_Q[off] += record->mapq;
+                                else{
+                                    c_A[arrayoff]++;
+                                    c_Aq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[arrayoff] += record->mapq;
                                 }
                             }
                             break;
                         case 'T':
                             if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'C') {
-                                w_C[off]++;
-                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_C[arrayoff]++;
+                                w_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
                                 if(record->r12 == 1) {
-                                    w_T[off]++;
-                                    w_Tq[off] += (unsigned short)(record->qual[i] - 33);
-                                    w_Q[off] += record->mapq;
+                                    w_T[arrayoff]++;
+                                    w_Tq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[arrayoff] += record->mapq;
                                  }
                                 else {
-                                    c_T[off]++;
-                                    c_Tq[off] += (unsigned short)(record->qual[i] - 33);
-                                    c_Q[off] += record->mapq;
+                                    c_T[arrayoff]++;
+                                    c_Tq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[arrayoff] += record->mapq;
                                 }
                             }
                             break;
                         case 'C':
                             if(record->r12 == 1) {
-                                w_C[off]++;
-                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_C[arrayoff]++;
+                                w_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
-                                c_C[off]++;
-                                c_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
+                                c_C[arrayoff]++;
+                                c_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[arrayoff] += record->mapq;
                             }
                             break;
                         case 'G':
                             if(record->r12 == 1) {
-                                w_G[off]++;
-                                w_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_G[arrayoff]++;
+                                w_Gq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
-                                c_G[off]++;
-                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
+                                c_G[arrayoff]++;
+                                c_Gq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[arrayoff] += record->mapq;
                             }
                             break;
                     }
                 }
-                else {
+                else{
                     switch(record->seq[i]) {
                         case 'A':
                             if(0 &&record->r12 == 1 && chrSeqArray[idx][off] == 'G') {
-                                c_G[off]++;
-                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
+                                c_G[arrayoff]++;
+                                c_Gq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[arrayoff] += record->mapq;
                             }
                             else {
                                 if(record->r12 == 2) {
-                                    w_A[off]++;
-                                    w_Aq[off] += (unsigned short)(record->qual[i] - 33);
-                                    w_Q[off] += record->mapq;
+                                    w_A[arrayoff]++;
+                                    w_Aq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[arrayoff] += record->mapq;
                                 }
                                 else {
-                                    c_A[off]++;
-                                    c_Aq[off] += (unsigned short)(record->qual[i] - 33);
-                                    c_Q[off] += record->mapq;
+                                    c_A[arrayoff]++;
+                                    c_Aq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[arrayoff] += record->mapq;
                                 }
                             }
                             break;
                         case 'T':
                             if(0 &&record->r12 == 2 && chrSeqArray[idx][off] == 'C') {
-                                w_C[off]++;
-                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_C[arrayoff]++;
+                                w_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
                                 if(record->r12 == 2) {
-                                    w_T[off]++;
-                                    w_Tq[off] += (unsigned short)(record->qual[i] - 33);
-                                    w_Q[off] += record->mapq;
+                                    w_T[arrayoff]++;
+                                    w_Tq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    w_Q[arrayoff] += record->mapq;
                                 }
                                 else {
-                                    c_T[off]++;
-                                    c_Tq[off] += (unsigned short)(record->qual[i] - 33);
-                                    c_Q[off] += record->mapq;
+                                    c_T[arrayoff]++;
+                                    c_Tq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                    c_Q[arrayoff] += record->mapq;
                                 }
                             }
                             break;
                         case 'C':
                             if(record->r12 == 2) {
-                                w_C[off]++;
-                                w_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_C[arrayoff]++;
+                                w_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
-                                c_C[off]++;
-                                c_Cq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
+                                c_C[arrayoff]++;
+                                c_Cq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[arrayoff] += record->mapq;
                             }
                             break;
                         case 'G':
                             if(record->r12 == 2) {
-                                w_G[off]++;
-                                w_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                w_Q[off] += record->mapq;
+                                w_G[arrayoff]++;
+                                w_Gq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                w_Q[arrayoff] += record->mapq;
                             }
                             else {
-                                c_G[off]++;
-                                c_Gq[off] += (unsigned short)(record->qual[i] - 33);
-                                c_Q[off] += record->mapq;
+                                c_G[arrayoff]++;
+                                c_Gq[arrayoff] += (unsigned short)(record->qual[i] - 33);
+                                c_Q[arrayoff] += record->mapq;
                             }
                             break;
                     }
@@ -1579,51 +1606,62 @@ void snpProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
         }
         // Update row counter
         rowCnt++;
-        if(rowCnt % 100000 == 0)
-            fprintf(stderr, "%s: %d reads have been dealed.\n", curChr, rowCnt);
+        //if(rowCnt % 100000 == 0)
+        //    fprintf(stderr, "%s: %d reads have been dealed.\n", curChr, rowCnt);
     }
 
     // Last batch
     if(finCnt < rowCnt) {
+        fprintf(stderr, "%s:%d-%d have processed, len %d.\n", curChr, istart, iend, processlen);
         // Print
-        pthread_mutex_lock(&output_mutex);
-        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
-        pthread_mutex_unlock(&output_mutex);
-        fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", len);
-        // Memory gathering for x_X
-        free(w_A);
-        free(w_T);
-        free(w_C);
-        free(w_G);
-        free(c_A);
-        free(c_T);
-        free(c_C);
-        free(c_G);
-        // Memory gathering for x_Xq
-        free(w_Aq);
-        free(w_Tq);
-        free(w_Cq);
-        free(w_Gq);
-        free(c_Aq);
-        free(c_Tq);
-        free(c_Cq);
-        free(c_Gq);
-
-        // Memory gathering for x_Q
-        free(w_Q);
-        free(c_Q);
+        //pthread_mutex_lock(&output_mutex);
+        printArray(methFptr, snpFptr, chrSeqArray, idx, processlen, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, istart);
+        //pthread_mutex_unlock(&output_mutex);
+        //fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", processlen);
     }
+    free(record->qname);
+    free(record->chrome);
+    free(record->cigar);
+    free(record->seq);
+    free(record->seqBuf);
+    free(record->qual);
+    free(record->qualBuf);
+    free(record->comBuf);
+    free(record);
+
+    //    // Memory gathering for x_X
+    //    free(w_A);
+    //    free(w_T);
+    //    free(w_C);
+    //    free(w_G);
+    //    free(c_A);
+    //    free(c_T);
+    //    free(c_C);
+    //    free(c_G);
+    //    // Memory gathering for x_Xq
+    //    free(w_Aq);
+    //    free(w_Tq);
+    //    free(w_Cq);
+    //    free(w_Gq);
+    //    free(c_Aq);
+    //    free(c_Tq);
+    //    free(c_Cq);
+    //    free(c_Gq);
+
+    //    // Memory gathering for x_Q
+    //    free(w_Q);
+    //    free(c_Q);
 
     bam_header_destroy(header);
     //bam_close(in);
-    sam_close(infp);
+    sam_close(infp); // close files, free and return
     bam_destroy1(b);
     hts_itr_destroy(iter);
-    
+    hts_idx_destroy(bamidx); // destroy the BAM index //mem kuakua increase, cause lose you, wolege
 }
 
 //muti-outfile
-void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
+void bamProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, 
     int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom)
 {
     int i, j, off, idx, len;
@@ -1718,7 +1756,7 @@ void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
                 exit(0);
                 finCnt = rowCnt;
                 // Print
-                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q);
+                printArray(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq,  w_Q, c_Q, 0);
                 // Memory init
                 init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, len);
             }
@@ -1964,7 +2002,7 @@ void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     // Last batch
     if(finCnt < rowCnt) {
         // Print
-        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+        printArray(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, 0);
         // Memory gathering for x_X
         fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", len);
         free(w_A);
@@ -1995,11 +2033,11 @@ void snpProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     sam_close(infp);
     bam_destroy1(b);
     hts_itr_destroy(iter);
-    
+    hts_idx_destroy(bamidx); // destroy the BAM index //mem kuakua increase, cause lose you, wolege
 }
 
 //single thread
-void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr)
+void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr)
 {
     int i, j, off, idx, len;
     int m, n, cnt, iread;
@@ -2069,7 +2107,7 @@ void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
                 // Update
                 finCnt = rowCnt;
                 // Print
-                printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+                printArray(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, 0);
                 // Memory init
                 init_mem_snp(w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, longestchr);
             }
@@ -2313,7 +2351,8 @@ void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     // Last batch
     if(finCnt < rowCnt) {
         // Print
-        printSnp(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q);
+        printArray(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, 0);
+    }
         // Memory gathering for x_X
         fprintf(stderr, "Memory free for SNP/meth, array len: %u\n", longestchr);
         free(w_A);
@@ -2337,7 +2376,6 @@ void snpProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
         // Memory gathering for x_Q
         free(w_Q);
         free(c_Q);
-    }
 
     bam_header_destroy(header);
     bam_close(in);
