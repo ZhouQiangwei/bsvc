@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
     char* chrLenFile=(char*) malloc(sizeof(char)*1024);
     sprintf(chrLenFile, "%s.len", refSeqFile);
     
-    fprintf(stderr, "\nBisulfite-seq Single Nucleotide Polymorphism Scan (BSNPS)\n--------------------------------------------------------------\n");
+    fprintf(stderr, "\nBisulfite-Seq Variation Calling (BSVC)\n--------------------------------------------------------------\n");
 
     if ( access(chrLenFile,0) ){
         fprintf(stderr, "build genome len file ...\n");
@@ -362,6 +362,8 @@ int main(int argc, char* argv[])
             {
                 args.ThreadID=i;
                 args.ithreadschr=ithreadschr;
+                args.processStart = i* bufferprocess;
+                args.processEnd = (i+1)*bufferprocess - 1;
                 Thread_Info[i].Arg=args;
                 Thread_Info[i].r=pthread_create(&Thread_Info[i].Thread,&Attrib,npsnpAnalysis,(void*) &Thread_Info[i].Arg);
                 if(Thread_Info[i].r) {printf("Launch_Threads():Cannot create thread..\n");exit(-1);}

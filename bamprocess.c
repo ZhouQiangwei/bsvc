@@ -27,7 +27,7 @@ extern int methmincover;
 extern int multiout;
 extern int bufferprocess;
 
-int jthreadschr = 0, istart=0, iend=0;
+//int jthreadschr = 0, istart=0, iend=0;
 pthread_mutex_t meth_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -36,9 +36,9 @@ void *npsnpAnalysis(void *arg){
     //if(meth)
     //    methProcess(bamFileName, args->methCgFileName, args->methChgFileName, args->methChhFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, mincover, mapqThr);
 
-    pthread_mutex_lock(&meth_counter_mutex);
-    if(iend!=0) {istart = 0-bufferprocess; iend = 0;}
-    pthread_mutex_unlock(&meth_counter_mutex);
+    //pthread_mutex_lock(&meth_counter_mutex);
+    //if(iend!=0) {istart = 0-bufferprocess; iend = 0;}
+    //pthread_mutex_unlock(&meth_counter_mutex);
     //Process SNP
     if(snp){
         // SNP outfile
@@ -50,17 +50,18 @@ void *npsnpAnalysis(void *arg){
         if(NTHREAD>1){
             int processchrom=args->ithreadschr;
             // SNP outfile
-            pthread_mutex_lock(&meth_counter_mutex);
-            istart += bufferprocess; iend += bufferprocess; jthreadschr = 0;
-            pthread_mutex_unlock(&meth_counter_mutex);
-            for(; iend<=args->chrLen[processchrom] && istart<args->chrLen[processchrom]; ) {
-                bamProcess(args->methFptr[args->ThreadID], args->snpFptr[args->ThreadID], bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom], istart, iend, args->w_A[args->ThreadID], args->w_T[args->ThreadID], args->w_C[args->ThreadID], args->w_G[args->ThreadID], args->c_A[args->ThreadID], args->c_T[args->ThreadID], args->c_C[args->ThreadID], args->c_G[args->ThreadID], args->w_Aq[args->ThreadID], args->w_Tq[args->ThreadID], args->w_Cq[args->ThreadID], args->w_Gq[args->ThreadID], args->c_Aq[args->ThreadID], args->c_Tq[args->ThreadID], args->c_Cq[args->ThreadID], args->c_Gq[args->ThreadID], args->w_Q[args->ThreadID], args->c_Q[args->ThreadID]);
-                pthread_mutex_lock(&meth_counter_mutex);
-                if(istart==0) istart = 1;
-                istart += bufferprocess;
-                iend += bufferprocess;
-                if(iend>args->chrLen[processchrom]) iend = args->chrLen[processchrom];
-                pthread_mutex_unlock(&meth_counter_mutex);
+            //pthread_mutex_lock(&meth_counter_mutex);
+            //istart += args->ThreadID*bufferprocess; iend += args->ThreadID*bufferprocess; jthreadschr = 0;
+            //pthread_mutex_unlock(&meth_counter_mutex);
+            for(; args->processEnd<=args->chrLen[processchrom] && args->processStart<args->chrLen[processchrom]; ) {
+                bamProcess(args->methFptr[args->ThreadID], args->snpFptr[args->ThreadID], bamFileName, args->hashTable, args->chrSeqArray, args->chrLen, args->chrCnt, minquali, maxcover, minhetfreq, errorrate, mapqThr, chrName[processchrom], args->processStart, args->processEnd, args->w_A[args->ThreadID], args->w_T[args->ThreadID], args->w_C[args->ThreadID], args->w_G[args->ThreadID], args->c_A[args->ThreadID], args->c_T[args->ThreadID], args->c_C[args->ThreadID], args->c_G[args->ThreadID], args->w_Aq[args->ThreadID], args->w_Tq[args->ThreadID], args->w_Cq[args->ThreadID], args->w_Gq[args->ThreadID], args->c_Aq[args->ThreadID], args->c_Tq[args->ThreadID], args->c_Cq[args->ThreadID], args->c_Gq[args->ThreadID], args->w_Q[args->ThreadID], args->c_Q[args->ThreadID]);
+                //pthread_mutex_lock(&meth_counter_mutex);
+                //if(istart==0) istart = 1;
+                args->processStart += NTHREAD*bufferprocess;
+                args->processEnd += NTHREAD*bufferprocess;
+                if(args->processStart >= args->chrLen[processchrom]) break;
+                if(args->processEnd>args->chrLen[processchrom]) args->processEnd = args->chrLen[processchrom];
+                //pthread_mutex_unlock(&meth_counter_mutex);
             }
         }
         else{

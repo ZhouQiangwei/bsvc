@@ -39,6 +39,8 @@ struct ARGS{
     int chrCnt;
     int ThreadID;
     int ithreadschr;
+    long processStart;
+    long processEnd;
     
     unsigned short **w_A;
     unsigned short **w_T;
