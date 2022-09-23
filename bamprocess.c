@@ -1613,7 +1613,7 @@ void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
 
     // Last batch
     if(finCnt < rowCnt) {
-        fprintf(stderr, "%s:%d-%d have processed, len %d.\n", curChr, istart, iend, processlen);
+        fprintf(stderr, "%s:%d-%d have processed, len %d, reads %d.\n", curChr, istart, iend, processlen, rowCnt);
         // Print
         //pthread_mutex_lock(&output_mutex);
         printArray(methFptr, snpFptr, chrSeqArray, idx, processlen, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, istart);
@@ -2193,7 +2193,7 @@ void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
             off++;
         }
         // Snp per read
-        //printf("\n%d < %d %s %f %s %d\n", cnt, iread, record->qname, errorrate, record->qual, record->offset - 1);
+        //printf("\nprcocess-ssxx %d < %d %s %f %s %d\n", cnt, iread, record->qname, errorrate, record->qual, record->offset - 1);
         if(cnt <= iread) {
             off = record->offset - 1;
             for(i = 0; i < record->len; i++) {
@@ -2352,6 +2352,7 @@ void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     // Last batch
     if(finCnt < rowCnt) {
         // Print
+        fprintf(stderr, "Print output to file\n");
         printArray(methFptr, snpFptr, chrSeqArray, idx, len, minhetfreq, curChr, w_A, w_T, w_C, w_G, c_A, c_T, c_C, c_G, w_Aq, w_Tq, w_Cq, w_Gq, c_Aq, c_Tq, c_Cq, c_Gq, w_Q, c_Q, 0);
     }
         // Memory gathering for x_X

@@ -351,7 +351,7 @@ int main(int argc, char* argv[])
     fprintf(vcfheaerF, "%s\n", vcfheader);
     fclose(vcfheaerF);
 
-    if (NTHREAD)
+    if (NTHREAD>1)
     {
         for(int ithreadschr=0; ithreadschr < args.chrCnt; ithreadschr++){
             Threading* Thread_Info=(Threading*) malloc(sizeof(Threading)*NTHREAD);
@@ -390,6 +390,10 @@ int main(int argc, char* argv[])
         }
     }
     */
+    for (int i=0;i<NTHREAD;i++) fclose(args.snpFptr[i]);
+    if(meth==1) for (int i=0;i<NTHREAD;i++) fclose(args.methFptr[i]);
+    free(args.methFptr); free(args.snpFptr);
+
     char tempmerge[2000];
     sprintf(tempmerge, "cat");
     for (int i=0;i<NTHREAD;i++) {
@@ -415,10 +419,6 @@ int main(int argc, char* argv[])
 
     sprintf(tempoutfile, "rm %s.header %s.merge %s.merge.sort", snpFileName, snpFileName, snpFileName);
     onlyexecuteCMD(tempoutfile);
-
-    for (int i=0;i<NTHREAD;i++) fclose(args.snpFptr[i]);
-    if(meth==1) for (int i=0;i<NTHREAD;i++) fclose(args.methFptr[i]);
-    free(args.methFptr); free(args.snpFptr);
 
     for (int i=0;i<NTHREAD;i++) {
         // Memory gathering for x_X
