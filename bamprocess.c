@@ -442,7 +442,7 @@ void printArray(FILE* methFptr, FILE* posFptr, char** chrSeqArray, int idx, int 
     }
 }
 
-int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr)
+int parseBuffer(bam_hdr_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr)
 {
     int i, num, plen, flag;
     int seqPtr, seqBufPtr;
@@ -450,8 +450,8 @@ int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int
     char *pdest;
 
     const bam1_core_t *c = &b->core;
-    uint8_t *s = bam1_seq(b);
-    uint8_t *t = bam1_qual(b);
+    uint8_t *s = bam_get_seq(b);
+    uint8_t *t = bam_get_qual(b);
 
     //kstring_t str;
     //str.l = str.m = 0; str.s = 0;
@@ -461,7 +461,7 @@ int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int
     /////////////////////////////////
     // {{
     // 1 - QNAME
-    strcpy(record->qname, bam1_qname(b));
+    strcpy(record->qname, bam_get_qname(b));
     // 2 - FLAG
     record->flag = c->flag;
     if((record->flag & 0x04) != 0) {
@@ -495,7 +495,7 @@ int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int
 
     //int cl=0;
     for (i = 0; i < c->n_cigar; ++i){
-        sprintf(tmp, "%d%c", bam1_cigar(b)[i]>>BAM_CIGAR_SHIFT, "MIDNSHP"[bam1_cigar(b)[i]&BAM_CIGAR_MASK]);
+        sprintf(tmp, "%d%c", bam_get_cigar(b)[i]>>BAM_CIGAR_SHIFT, "MIDNSHP"[bam_get_cigar(b)[i]&BAM_CIGAR_MASK]);
         //cl=strlen(tmp)-1;
         //if(strstr(tmp, "M")!=NULL || strstr(tmp, "I")!=NULL || strstr(tmp, "D")!=NULL || strstr(tmp, "S")!=NULL) {
         //if(cl>0 && (tmp[cl]=='M' || tmp[cl]=='I' || tmp[cl]=='D' || tmp[cl]=='S')){
@@ -514,7 +514,7 @@ int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int
     //tmp=NULL;
     // 10 - SEQ
     for(i = 0; i < c->l_qseq; ++i)
-        record->seqBuf[i] = bam_nt16_rev_table[bam1_seqi(s, i)];
+        record->seqBuf[i] = seq_nt16_str[bam_seqi(s, i)];
     record->seqBuf[i] = '\0';
     // 11 - QUAL
     if(t[0] == 0xff) {
@@ -769,10 +769,10 @@ void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName,
     int finCnt = 0;
     char curChr[100] = "chr1234567890";
     uint8_t *s, *t;
-    bam_header_t *header;
+    bam_hdr_t *header;
     fprintf(stderr, "Meth process begins...\n");
 
-    bamFile in = bam_open(bamFileName, "r");
+    samFile *in = sam_open(bamFileName, "rb");
     if(in == NULL) {
         fprintf(stderr, "Cannot open bam file!\n");
         exit(1);
@@ -805,8 +805,8 @@ void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName,
         exit(1);
     }
 
-    header = bam_header_read(in);
-    while(bam_read1(in, b) >= 0) {
+    header = sam_hdr_read(in);
+    while(sam_read1(in, header, b) >= 0) {
         // Parse record
         if(parseBuffer(header, b, record, mapqThr) == 1)
             continue;
@@ -1133,8 +1133,8 @@ void methProcess(char* bamFileName, char* methCgFileName, char* methChgFileName,
         free(c_Mq_CHH);
     }
 
-    bam_header_destroy(header);
-    bam_close(in);
+    bam_hdr_destroy(header);
+    sam_close(in);
     bam_destroy1(b);
     fclose(methCgFptr);
     fclose(methChgFptr);
@@ -1306,10 +1306,10 @@ void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
     int finCnt = 0;
     char curChr[100] = "chr1234567890";
     uint8_t *s, *t;
-    bam_header_t *header;
+    bam_hdr_t *header;
     
     samFile *infp=0;
-    if ((infp = sam_open(bamFileName)) == 0) { //, "r"
+    if ((infp = sam_open(bamFileName, "rb")) == 0) { //, "r"
         fprintf(stderr, "Fail to open BAM file %s\n", bamFileName);
         exit(1);
     }
@@ -1653,8 +1653,8 @@ void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
     //    free(w_Q);
     //    free(c_Q);
 
-    bam_header_destroy(header);
-    //bam_close(in);
+    bam_hdr_destroy(header);
+    //sam_close(in);
     sam_close(infp); // close files, free and return
     bam_destroy1(b);
     hts_itr_destroy(iter);
@@ -1711,10 +1711,10 @@ void bamProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     int finCnt = 0;
     char curChr[100] = "chr1234567890";
     uint8_t *s, *t;
-    bam_header_t *header;
+    bam_hdr_t *header;
     
     samFile *infp=0;
-    if ((infp = sam_open(bamFileName)) == 0) { //, "r"
+    if ((infp = sam_open(bamFileName, "rb")) == 0) { //, "r"
         fprintf(stderr, "Fail to open BAM file %s\n", bamFileName);
         exit(1);
     }
@@ -2029,8 +2029,8 @@ void bamProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
         free(c_Q);
     }
 
-    bam_header_destroy(header);
-    //bam_close(in);
+    bam_hdr_destroy(header);
+    //sam_close(in);
     sam_close(infp);
     bam_destroy1(b);
     hts_itr_destroy(iter);
@@ -2080,9 +2080,9 @@ void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
     int finCnt = 0;
     char curChr[100] = "chr1234567890";
     uint8_t *s, *t;
-    bam_header_t *header;
+    bam_hdr_t *header;
 
-    bamFile in = bam_open(bamFileName, "r");
+    samFile* in = sam_open(bamFileName, "rb");
     if(in == NULL) {
         fprintf(stderr, "Cannot open bam file!\n");
         exit(1);
@@ -2095,8 +2095,8 @@ void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
         fprintf(stderr, "Cannot init bam structure!\n");
         exit(1);
     }
-    header = bam_header_read(in);
-    while( bam_read1(in, b) >= 0) {
+    header = sam_hdr_read(in);
+    while( sam_read1(in, header, b) >= 0) {
         // Parse record
         if(parseBuffer(header, b, record, mapqThr) == 1)
             continue;
@@ -2379,8 +2379,8 @@ void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNo
         free(w_Q);
         free(c_Q);
 
-    bam_header_destroy(header);
-    bam_close(in);
+    bam_hdr_destroy(header);
+    sam_close(in);
     bam_destroy1(b);
 }
 

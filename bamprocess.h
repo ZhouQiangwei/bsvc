@@ -11,10 +11,12 @@
 #include <string.h>
 #include <ctype.h>
 //#include <bam.h>
-#include "sam.h"
+//#include "sam.h"
 //#include <kstring.h>
 #include "htslib/sam.h"
 #include "htslib/hts.h"
+#include "htslib/faidx.h"
+#include <zlib.h>
 
 #ifndef BAM_CIGAR_SHIFT
 #define BAM_CIGAR_SHIFT 4
@@ -99,7 +101,7 @@ void bamProcess(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** has
 void bamProcess_singlet(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int vQualMin, int nLayerMax, float vSnpRate, float vSnpPerBase, unsigned int mapqThr);
 void bamProcess_multiop(FILE* methFptr, FILE* snpFptr, char* bamFileName, HashNode** hashTable, char** chrSeqArray, int* chrLen, int chrCnt, int minquali, int maxcover, float minhetfreq, float errorrate, unsigned int mapqThr, char* processChrom);
 
-int parseBuffer(bam_header_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr);
+int parseBuffer(bam_hdr_t *header, bam1_t *b, MapRecord* record, unsigned int mapqThr);
 char nxtChar(char* cigar, int* len);
 void dispRecord(MapRecord* record);
 int seqReverse(char* seq, int seqLen);

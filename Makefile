@@ -2,8 +2,9 @@ CC = g++
 FLAGS = -O2 
 LDFLAGS = -O2
 HTSLIB=submodules/htslib
-SAMTOOLS=submodules/samtools
-LIBS = -m64 -I./$(SAMTOOLS) -I$(HTSLIB) -L$(SAMTOOLS) -L$(HTSLIB) -lbam -lz -lpthread -lm -lgsl -lgslcblas -lhts
+SAMTOOLS=./  #submodules/samtools
+BAMFLAG= #-lbam
+LIBS = -m64 -I$(SAMTOOLS) -I$(HTSLIB) -L$(SAMTOOLS) -L$(HTSLIB) $(BAMFLAG) -lz -lpthread -lm -lgsl -lgslcblas -lhts
 
 TARGET = bsvc
 TOCOMPILE = bsnps.o bamprocess.o hashtable.o readgenome.o fisher.o bayes.o getchrLen.o genotype.o tstudenttest.o
@@ -11,7 +12,7 @@ TOCOMPILE = bsnps.o bamprocess.o hashtable.o readgenome.o fisher.o bayes.o getch
 all: ${TOCOMPILE}
 	make -C $(HTSLIB) lib-static
 	#make clean-so -C $(HTSLIB)
-	make -C $(SAMTOOLS) lib
+	#make -C $(SAMTOOLS) lib
 	${CC} $(LDFLAGS) -o $(TARGET) ${TOCOMPILE} ${LIBS}
 
 .c.o:
@@ -19,7 +20,7 @@ all: ${TOCOMPILE}
 
 deepclean: clean
 	make clean -C $(HTSLIB)
-	make clean -C $(SAMTOOLS)
+	#make clean -C $(SAMTOOLS)
 
 clean:
 	rm -f *.o $(TARGET)
