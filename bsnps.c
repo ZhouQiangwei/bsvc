@@ -57,7 +57,7 @@ void onlyexecuteCMD(char *cmd);
 int main(int argc, char* argv[])
 {
     time_t Start_Time,End_Time;
-    const char* Help_String="Command Format :  BSsnpScan [options] -g GENOME -i <Bamfile> -o <SNP outfile>\n"
+    const char* Help_String="Command Format :  bsvc [options] -g GENOME -i <Bamfile> -o <SNP outfile>\n"
         "\nUsage:\n"
         "\t-g|--genome           Genome\n"
         "\t-i|--input            Sorted bam format file\n"
