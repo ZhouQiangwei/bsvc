@@ -1,4 +1,15 @@
+<p align="left">
+  <a href="https://github.com/ZhouQiangwei/bsvc/releases"><img src="https://img.shields.io/github/v/release/ZhouQiangwei/bsvc"></a>
+  <img src="https://img.shields.io/github/license/ZhouQiangwei/bsvc">
+  <img src="https://img.shields.io/github/stars/ZhouQiangwei/bsvc">
+  <a href="https://github.com/ZhouQiangwei/bsvc/issues"><img src="https://img.shields.io/github/issues/ZhouQiangwei/bsvc?color=red"></a>
+  <img src="https://img.shields.io/github/forks/ZhouQiangwei/bsvc?color=teal">
 
+  <img src="https://img.shields.io/github/downloads/ZhouQiangwei/bsvc/total">
+  <img src="https://img.shields.io/github/watchers/ZhouQiangwei/bsvc">
+  <a href='https://github.com/ZhouQiangwei/bsvc'><img alt='clones' src='https://img.shields.io/badge/dynamic/json?color=success&label=Clone&query=count&url=https://gist.githubusercontent.com/ZhouQiangwei/edfb1c286659d1b14121552657de71ef/raw/clone.json&logo=github'></a>
+  <a href="https://github.com/ZhouQiangwei/bsvc"><img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FZhouQiangwei%2Fbsvc&count_bg=%2379C83D&title_bg=%23555555&icon=coffeescript.svg&icon_color=%23E7E7E7&title=views&edge_flat=false"/></a>
+</p>
 
 # Bisulfite-seq Variation Calling (BSVC)
 
