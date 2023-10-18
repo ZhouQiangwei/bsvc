@@ -13,7 +13,9 @@
 
 # Bisulfite-seq Variation Calling (BSVC)
 
-
+## INSTALL
+make
+./bsvc
 
 ## Methods
 
