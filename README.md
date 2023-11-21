@@ -18,6 +18,10 @@ make
 
 ./bsvc
 
+Rename BSsnpcaller/BSNPS to BSVC
+
+:smile: We currently do not have plans to publish bsvc. If you are using bsvc, please cite https://github.com/ZhouQiangwei/bsvc
+
 ## Methods
 
 **Bayes:** bayes genotype function, likehood function.

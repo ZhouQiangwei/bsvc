@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
 //        "\t--multiout            Output results write to one file, or multi files with {out.chrom} prefix. only useful when number of threads bigger than 1. [0 or 1]\n"
         //"\t-mchg                 DNA methylation CHG file.\n"
         //"\t-mchh                 DNA methylation CHH file.\n"
-        "\t-h|--help             BSNPS usage.\n";
+        "\t-h|--help             bsvc usage.\n";
         //"\t------------          If variant position filter quality is Low, we also can set `AD>minvarread, ALFR>minvarrate, pvalue<pvalue_cutoff+0.01` as PASS.\n"
         //"\t--minvarread          default: 5\n"
         //"\t--minvarrate          default: 0.3";
@@ -316,7 +316,7 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////////////////////////////////////
     // vcf header
     const char* vcfheader="##fileformat=VCFv4.1\n"
-    "##source=BSNPS\n"
+    "##source=BSVC\n"
     "##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">"
     "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Raw read depth\">\n"
     "##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Total allelic depths\">\n"
