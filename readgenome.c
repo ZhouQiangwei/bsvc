@@ -1,5 +1,6 @@
 #include "readgenome.h"
 
+
 // Add chrome name to hash table
 void init_chrome_hash(HashNode** hashTable, int* hash_table_size, char* chrLenFile, int* chrCnt)
 {

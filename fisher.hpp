@@ -12,5 +12,6 @@
 #include <stdlib.h>
 
 //static 
+//
 double fishers_exact(size_t a, size_t b, size_t c, size_t d);
 

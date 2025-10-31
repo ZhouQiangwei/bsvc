@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #define BUFSIZE 1000000
 
 int getchrLen(char* refSeqFile)

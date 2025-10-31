@@ -1,6 +1,7 @@
 #ifndef _SAM_FUNCS_H
 #define _SAM_FUNCS_H
 
+
 #include <string>
 #include "bayes.hpp"
 #include "genotype.hpp"
